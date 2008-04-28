@@ -1,5 +1,8 @@
 /*  minIni - Multi-Platform INI file parser, suitable for embedded systems
  *
+ *  These routines are in part based on the article "Multiplatform .INI Files"
+ *  by Joseph J. Graf in the March 1994 issue of Dr. Dobb's Journal.
+ *
  *  Copyright (c) ITB CompuPhase, 2008
  *
  *  This software is provided "as-is", without any express or implied warranty.
@@ -34,10 +37,10 @@
 
 #include "minIni.h"
 
-#if !defined UNICODE
+#if !defined __T
   #include <string.h>
   #include <stdlib.h>
-  /* definition of TCHAR already in tinycfg.h */
+  /* definition of TCHAR already in minIni.h */
   #define __T(s)    s
   #define _tcscat   strcat
   #define _tcschr   strchr
@@ -58,6 +61,9 @@
 
 #if !defined INI_LINETERM
   #define INI_LINETERM    __T("\n")
+#endif
+#if !defined INI_FILETYPE
+  #define INI_FILETYPE    FILE*
 #endif
 
 #if !defined sizearray
@@ -113,15 +119,14 @@ static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen)
   return dest;
 }
 
-static int getkeystring(void *fp, const TCHAR *Section, const TCHAR *Key,
+static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key,
                         TCHAR *Buffer, int BufferSize)
 {
   TCHAR *sp, *ep;
   int len;
   TCHAR LocalBuffer[INI_BUFFERSIZE];
 
-  assert(fp);
-  assert(LocalBuffer);
+  assert(fp != NULL);
   /* Move through file 1 line at a time until a section is matched or EOF. If
    * parameter Section is NULL, only look at keys above the first section.
    */
@@ -138,6 +143,7 @@ static int getkeystring(void *fp, const TCHAR *Section, const TCHAR *Key,
   /* Now that the section has been found, find the entry.
    * Stop searching upon leaving the section's area.
    */
+  assert(Key != NULL);
   len = (int)_tcslen(Key);
   do {
     if (!ini_read(LocalBuffer,INI_BUFFERSIZE,fp) || *(sp = skipleading(LocalBuffer)) == '[')
@@ -169,15 +175,14 @@ static int getkeystring(void *fp, const TCHAR *Section, const TCHAR *Key,
 int ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue,
              TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
 {
-  void *fp;
+  INI_FILETYPE fp;
   int ok = 0;
 
-  if (Buffer == NULL || BufferSize <= 0)
+  if (Buffer == NULL || BufferSize <= 0 || Key == NULL)
     return 0;
-  fp = ini_openread(Filename);
-  if (fp) {
-    ok = getkeystring(fp, Section, Key, Buffer, BufferSize);
-    ini_close(fp);
+  if (ini_openread(Filename, &fp)) {
+    ok = getkeystring(&fp, Section, Key, Buffer, BufferSize);
+    ini_close(&fp);
   } /* if */
   if (!ok)
     save_strncpy(Buffer, DefValue, BufferSize);
@@ -199,7 +204,7 @@ long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR
   return (len == 0) ? DefValue : _tcstol(buff,NULL,10);
 }
 
-static void maketempname(TCHAR *dest, const TCHAR *source, int maxlength)
+static void ini_tempname(TCHAR *dest, const TCHAR *source, int maxlength)
 {
   TCHAR *p;
 
@@ -209,7 +214,7 @@ static void maketempname(TCHAR *dest, const TCHAR *source, int maxlength)
   *(p - 1) = '~';
 }
 
-static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, void *fp)
+static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, INI_FILETYPE *fp)
 {
   TCHAR *p;
 
@@ -224,7 +229,7 @@ static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, void *fp)
   } /* if */
 }
 
-static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, void *fp)
+static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, INI_FILETYPE *fp)
 {
   TCHAR *p;
 
@@ -249,20 +254,21 @@ static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, v
  */
 int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename)
 {
-    void *rfp, *wfp;
+    INI_FILETYPE rfp;
+    INI_FILETYPE wfp;
     TCHAR *sp, *ep;
     TCHAR LocalBuffer[INI_BUFFERSIZE];
     int len, match, count;
 
     assert(Filename!=NULL);
-    if ((rfp = ini_openread(Filename)) == NULL) {
+    if (!ini_openread(Filename, &rfp)) {
       /* If the .ini file doesn't exist, make a new file */
       if (Key!=NULL && Value!=NULL) {
-        if ((wfp = ini_openwrite(Filename)) == NULL)
+        if (!ini_openwrite(Filename, &wfp))
           return 0;
-        writesection(LocalBuffer, Section, wfp);
-        writekey(LocalBuffer, Key, Value, wfp);
-        ini_close(wfp);
+        writesection(LocalBuffer, Section, &wfp);
+        writekey(LocalBuffer, Key, Value, &wfp);
+        ini_close(&wfp);
       } /* if */
       return 1;
     } /* if */
@@ -270,9 +276,9 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
     /* Get a temporary file name to copy to. Use the existing name, but with
      * the last character set to a '~'.
      */
-    maketempname(LocalBuffer, Filename, INI_BUFFERSIZE);
-    if ((wfp = ini_openwrite(LocalBuffer)) == NULL) {
-      ini_close(rfp);
+    ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+    if (!ini_openwrite(LocalBuffer, &wfp)) {
+      ini_close(&rfp);
       return 0;
     } /* if */
 
@@ -283,18 +289,18 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
     len = (Section != NULL) ? _tcslen(Section) : 0;
     if (len > 0) {
       do {
-        if (!ini_read(LocalBuffer, INI_BUFFERSIZE, rfp)) {
+        if (!ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
           /* Failed to find section, so add one to the end */
           if (Key!=NULL && Value!=NULL) {
-              ini_write(INI_LINETERM, wfp); /* force a new line (there may not have been one) behind the last line of the INI file */
-              writesection(LocalBuffer, Section, wfp);
-              writekey(LocalBuffer, Key, Value, wfp);
+              ini_write(INI_LINETERM, &wfp);  /* force a new line (there may not have been one) behind the last line of the INI file */
+              writesection(LocalBuffer, Section, &wfp);
+              writekey(LocalBuffer, Key, Value, &wfp);
           } /* if */
           /* Clean up and rename */
-          ini_close(rfp);
-          ini_close(wfp);
+          ini_close(&rfp);
+          ini_close(&wfp);
           ini_remove(Filename);
-          maketempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+          ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
           ini_rename(LocalBuffer, Filename);
           return 1;
         } /* if */
@@ -311,8 +317,8 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
            */
           if (_tcslen(sp) > 0) {
             if (*sp == '[' && count > 0)
-              ini_write(INI_LINETERM, wfp);
-            ini_write(sp, wfp);
+              ini_write(INI_LINETERM, &wfp);
+            ini_write(sp, &wfp);
             count++;
           } /* if */
         } /* if */
@@ -325,17 +331,17 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
      */
     len = (Key!=NULL) ? _tcslen(Key) : 0;
     for( ;; ) {
-      if (!ini_read(LocalBuffer, INI_BUFFERSIZE, rfp)) {
+      if (!ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
         /* EOF without an entry so make one */
         if (Key!=NULL && Value!=NULL) {
-            ini_write(INI_LINETERM, wfp); /* force a new line (there may not have been one) behind the last line of the INI file */
-            writekey(LocalBuffer, Key, Value, wfp);
+            ini_write(INI_LINETERM, &wfp);  /* force a new line (there may not have been one) behind the last line of the INI file */
+            writekey(LocalBuffer, Key, Value, &wfp);
         } /* if */
         /* Clean up and rename */
-        ini_close(rfp);
-        ini_close(wfp);
+        ini_close(&rfp);
+        ini_close(&wfp);
         ini_remove(Filename);
-        maketempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+        ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
         ini_rename(LocalBuffer, Filename);
         return 1;
       } /* if */
@@ -348,7 +354,7 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
         break;  /* found the key, or found a new section */
       /* in the section that we re-write, do not copy empty lines */
       if (Key!=NULL && _tcslen(sp) > 0)
-        ini_write(sp, wfp);
+        ini_write(sp, &wfp);
     } /* for */
     if (*sp == '[') {
       /* found start of new section, the key was not in the specified
@@ -358,34 +364,34 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
         /* We cannot use "writekey()" here, because we need to preserve the
          * contents of LocalBuffer.
          */
-        ini_write(Key, wfp);
-        ini_write("=", wfp);
-        ini_write(Value, wfp);
-        ini_write(INI_LINETERM INI_LINETERM, wfp); /* put a blank line between the current and the next section */
+        ini_write(Key, &wfp);
+        ini_write("=", &wfp);
+        ini_write(Value, &wfp);
+        ini_write(INI_LINETERM INI_LINETERM, &wfp); /* put a blank line between the current and the next section */
       } /* if */
       /* write the new section header that we read previously */
-      ini_write(sp, wfp);
+      ini_write(sp, &wfp);
     } else {
       /* We found the key; ignore the line just read (with the key and
        * the current value) and write the key with the new value.
        */
       if (Key!=NULL && Value!=NULL)
-        writekey(LocalBuffer, Key, Value, wfp);
+        writekey(LocalBuffer, Key, Value, &wfp);
     } /* if */
     /* Copy the rest of the INI file (removing empty lines, except before a section) */
-    while (ini_read(LocalBuffer, INI_BUFFERSIZE, rfp)) {
+    while (ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
       sp = skipleading(LocalBuffer);
       if (_tcslen(sp) > 0) {
         if (*sp == '[')
-          ini_write(INI_LINETERM, wfp);
-        ini_write(sp, wfp);
+          ini_write(INI_LINETERM, &wfp);
+        ini_write(sp, &wfp);
       } /* if */
     } /* while */
     /* Clean up and rename */
-    ini_close(wfp);
-    ini_close(rfp);
+    ini_close(&rfp);
+    ini_close(&wfp);
     ini_remove(Filename);
-    maketempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+    ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
     ini_rename(LocalBuffer, Filename);
     return 1;
 }

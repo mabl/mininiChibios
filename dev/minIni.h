@@ -25,8 +25,8 @@
 
 #if defined _UNICODE || defined __UNICODE__ || defined UNICODE
   #include <tchar.h>
-#else
-  #define TCHAR     char
+#elif !defined __T
+  typedef char TCHAR;
 #endif
 
 #if defined __cplusplus
