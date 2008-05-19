@@ -57,6 +57,17 @@
   #define _tremove  remove
   #define _trename  rename
 #endif
+
+#if defined __linux || defined __linux__
+  #define __LINUX__
+#endif
+#if defined FREEBSD && !defined __FreeBSD__
+  #define __FreeBSD__
+#endif
+#if defined __LINUX__ || defined __FreeBSD__ || defined __OpenBSD__ || defined __GNUC__
+  #define strnicmp  strncasecmp
+#endif
+
 #include "minGlue.h"
 
 #if !defined INI_LINETERM
@@ -68,21 +79,6 @@
 
 #if !defined sizearray
   #define sizearray(a)    (sizeof(a) / sizeof((a)[0]))
-#endif
-
-#if defined strncmpi
-  #undef strncmpi
-#endif
-#if defined __WIN32__ || defined __NT__ || defined _WIN32 || defined WIN32
-  #define strncmpi  strnicmp
-#elif defined LINUX
-  #define strncmpi  strncasecmp
-#endif
-#if !defined _tcscmpi
-  #define _tcscmpi  _tcsicmp
-#endif
-#if !defined _tcsncmpi
-  #define _tcsncmpi _tcsnicmp
 #endif
 
 
@@ -137,7 +133,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
         return 0;
       sp = skipleading(LocalBuffer);
       ep = _tcschr(sp, ']');
-    } while (*sp != '[' || ep == NULL || (int)(ep-sp-1) != len || _tcsncmpi(sp+1,Section,len) != 0);
+    } while (*sp != '[' || ep == NULL || (int)(ep-sp-1) != len || _tcsnicmp(sp+1,Section,len) != 0);
   } /* if */
 
   /* Now that the section has been found, find the entry.
@@ -152,7 +148,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
     ep = _tcschr(sp, '='); /* Parse out the equal sign */
     if (ep == NULL)
       ep = _tcschr(sp, ':');
-  } while (ep == NULL || (int)(skiptrailing(ep,sp)-sp) != len || _tcsncmpi(sp,Key,len) != 0);
+  } while (ep == NULL || (int)(skiptrailing(ep,sp)-sp) != len || _tcsnicmp(sp,Key,len) != 0);
 
   /* Copy up to BufferSize chars to buffer */
   assert(ep != NULL);
@@ -309,7 +305,7 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
          */
         sp = skipleading(LocalBuffer);
         ep = _tcschr(sp, ']');
-        match = (*sp == '[' && ep != NULL && (int)(ep-sp-1) == len && _tcsncmpi(sp + 1,Section,len) == 0);
+        match = (*sp == '[' && ep != NULL && (int)(ep-sp-1) == len && _tcsnicmp(sp + 1,Section,len) == 0);
         if (!match || Key!=NULL) {
           /* Remove blank lines, but insert a blank line (possibly one that was
            * removed on the previous iteration) before a new section. This creates
@@ -349,7 +345,7 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
       ep = _tcschr(sp, '='); /* Parse out the equal sign */
       if (ep == NULL)
         ep = _tcschr(sp, ':');
-      match = (ep != NULL && (int)(ep-sp) == len && _tcsncmpi(sp,Key,len) == 0);
+      match = (ep != NULL && (int)(ep-sp) == len && _tcsnicmp(sp,Key,len) == 0);
       if ((Key!=NULL && match) || *sp == '[')
         break;  /* found the key, or found a new section */
       /* in the section that we re-write, do not copy empty lines */
