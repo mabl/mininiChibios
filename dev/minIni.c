@@ -153,8 +153,14 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
   /* Copy up to BufferSize chars to buffer */
   assert(ep != NULL);
   assert(*ep == '=' || *ep == ':');
-  striptrailing(ep + 1);
-  save_strncpy(Buffer, skipleading(ep + 1), BufferSize);
+  sp = skipleading(ep + 1);
+  striptrailing(sp);
+  /* Remove double quotes surrounding a value */
+  if (*sp == '"' && (ep = _tcschr(sp, '\0')) != NULL && *(ep - 1) == '"') {
+    sp++;
+    *--ep = '\0';
+  } /* if */
+  save_strncpy(Buffer, sp, BufferSize);
   return 1;
 }
 
@@ -441,3 +447,22 @@ int ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Fi
   long2str(Value, str);
   return ini_puts(Section, Key, str, Filename);
 }
+
+#if defined PORTABLE_STRNICMP
+int strnicmp(const TCHAR *s1, const TCHAR *s2, size_t n)
+{
+  register unsigned TCHAR c1, c2;
+
+  while (n-- != 0 && (*s1 || *s2)) {
+    c1 = *(const unsigned TCHAR *)s1++;
+    if ('a' <= c1 && c1 <= 'z')
+      c1 += ('A' - 'a');
+    c2 = *(const unsigned TCHAR *)s2++;
+    if ('a' <= c2 && c2 <= 'z')
+      c2 += ('A' - 'a');
+    if (c1 != c2)
+      return c1 - c2;
+  } /* while */
+  return 0;
+}
+#endif
