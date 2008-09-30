@@ -37,6 +37,8 @@ long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR
 int  ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
 int  ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename);
 int  ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename);
+int  ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
 
 #if defined __cplusplus
   }

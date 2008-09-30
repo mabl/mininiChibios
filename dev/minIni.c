@@ -116,31 +116,44 @@ static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen)
 }
 
 static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key,
-                        TCHAR *Buffer, int BufferSize)
+                        int idxSection, int idxKey, TCHAR *Buffer, int BufferSize)
 {
   TCHAR *sp, *ep;
-  int len;
+  int len, idx;
   TCHAR LocalBuffer[INI_BUFFERSIZE];
 
   assert(fp != NULL);
   /* Move through file 1 line at a time until a section is matched or EOF. If
-   * parameter Section is NULL, only look at keys above the first section.
+   * parameter Section is NULL, only look at keys above the first section. If
+   * idxSection is postive, copy the relevant section name.
    */
   len = (Section != NULL) ? _tcslen(Section) : 0;
-  if (len > 0) {
+  if (len > 0 || idxSection >= 0) {
+    idx = -1;
     do {
       if (!ini_read(LocalBuffer, INI_BUFFERSIZE, fp))
         return 0;
       sp = skipleading(LocalBuffer);
       ep = _tcschr(sp, ']');
-    } while (*sp != '[' || ep == NULL || (int)(ep-sp-1) != len || _tcsnicmp(sp+1,Section,len) != 0);
+    } while (*sp != '[' || ep == NULL || ((int)(ep-sp-1) != len || _tcsnicmp(sp+1,Section,len) != 0) && ++idx != idxSection);
+    if (idxSection >= 0) {
+      if (idx == idxSection) {
+        assert(ep != NULL);
+        assert(*ep == ']');
+        *ep = '\0';
+        save_strncpy(Buffer, sp + 1, BufferSize);
+        return 1;
+      } /* if */
+      return 0; /* no more section found */
+    } /* if */
   } /* if */
 
   /* Now that the section has been found, find the entry.
    * Stop searching upon leaving the section's area.
    */
-  assert(Key != NULL);
-  len = (int)_tcslen(Key);
+  assert(Key != NULL || idxKey >= 0);
+  len = (Key != NULL) ? (int)_tcslen(Key) : 0;
+  idx = -1;
   do {
     if (!ini_read(LocalBuffer,INI_BUFFERSIZE,fp) || *(sp = skipleading(LocalBuffer)) == '[')
       return 0;
@@ -148,7 +161,15 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
     ep = _tcschr(sp, '='); /* Parse out the equal sign */
     if (ep == NULL)
       ep = _tcschr(sp, ':');
-  } while (ep == NULL || (int)(skiptrailing(ep,sp)-sp) != len || _tcsnicmp(sp,Key,len) != 0);
+  } while (*sp == ';' || *sp == '#' || ep == NULL || ((int)(skiptrailing(ep,sp)-sp) != len || _tcsnicmp(sp,Key,len) != 0) && ++idx != idxKey);
+  if (idxKey >= 0) {
+    if (idx == idxKey) {
+      striptrailing(sp);
+      save_strncpy(Buffer, sp, BufferSize);
+      return 1;
+    } /* if */
+    return 0;   /* no more key found (in this section) */
+  } /* if */
 
   /* Copy up to BufferSize chars to buffer */
   assert(ep != NULL);
@@ -183,7 +204,7 @@ int ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue,
   if (Buffer == NULL || BufferSize <= 0 || Key == NULL)
     return 0;
   if (ini_openread(Filename, &fp)) {
-    ok = getkeystring(&fp, Section, Key, Buffer, BufferSize);
+    ok = getkeystring(&fp, Section, Key, -1, -1, Buffer, BufferSize);
     ini_close(&fp);
   } /* if */
   if (!ok)
@@ -247,7 +268,7 @@ static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, I
 }
 
 /** ini_puts()
- * \param Section     the name of the section to search for
+ * \param Section     the name of the section to write the string in
  * \param Key         the name of the entry to write, or NULL to erase all keys in the section
  * \param Value       a pointer to the buffer the string, or NULL to erase the key
  * \param Filename    the name and full path of the .ini file to write to
@@ -434,7 +455,7 @@ static void long2str(long value, TCHAR *str)
 }
 
 /** ini_putl()
- * \param Section     the name of the section to search for
+ * \param Section     the name of the section to write the value in
  * \param Key         the name of the entry to write, or NULL to erase all keys in the section
  * \param Value       the value to write
  * \param Filename    the name and full path of the .ini file to write to
@@ -446,6 +467,56 @@ int ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Fi
   TCHAR str[32];
   long2str(Value, str);
   return ini_puts(Section, Key, str, Filename);
+}
+
+/** ini_getsection()
+ * \param idx         the zero-based sequence number of the section to return
+ * \param Buffer      a pointer to the buffer to copy into
+ * \param BufferSize  the maximum number of characters to copy
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ * \return            the number of characters copied into the supplied buffer
+ */
+int  ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
+{
+  INI_FILETYPE fp;
+  int ok = 0;
+
+  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
+    return 0;
+  if (ini_openread(Filename, &fp)) {
+    ok = getkeystring(&fp, NULL, NULL, idx, -1, Buffer, BufferSize);
+    ini_close(&fp);
+  } /* if */
+  if (!ok)
+    *Buffer = '\0';
+  return _tcslen(Buffer);
+}
+
+/** ini_getkey()
+ * \param Section     the name of the section to browse through, or NULL to
+ *                    browse through the keys outside any section
+ * \param idx         the zero-based sequence number of the key to return
+ * \param Buffer      a pointer to the buffer to copy into
+ * \param BufferSize  the maximum number of characters to copy
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ * \return            the number of characters copied into the supplied buffer
+ */
+int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
+{
+  INI_FILETYPE fp;
+  int ok = 0;
+
+  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
+    return 0;
+  if (ini_openread(Filename, &fp)) {
+    ok = getkeystring(&fp, Section, NULL, -1, idx, Buffer, BufferSize);
+    ini_close(&fp);
+  } /* if */
+  if (!ok)
+    *Buffer = '\0';
+  return _tcslen(Buffer);
 }
 
 #if defined PORTABLE_STRNICMP
