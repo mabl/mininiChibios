@@ -3,30 +3,26 @@
  *  These routines are in part based on the article "Multiplatform .INI Files"
  *  by Joseph J. Graf in the March 1994 issue of Dr. Dobb's Journal.
  *
- *  Copyright (c) ITB CompuPhase, 2008
+ *  Copyright (c) ITB CompuPhase, 2008-2009
  *
- *  This software is provided "as-is", without any express or implied warranty.
- *  In no event will the authors be held liable for any damages arising from
- *  the use of this software.
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ *  use this file except in compliance with the License. You may obtain a copy
+ *  of the License at
  *
- *  Permission is granted to anyone to use this software for any purpose,
- *  including commercial applications, and to alter it and redistribute it
- *  freely, subject to the following restrictions:
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  1.  The origin of this software must not be misrepresented; you must not
- *      claim that you wrote the original software. If you use this software in
- *      a product, an acknowledgment in the product documentation would be
- *      appreciated but is not required.
- *  2.  Altered source versions must be plainly marked as such, and must not be
- *      misrepresented as being the original software.
- *  3.  This notice may not be removed or altered from any source distribution.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ *  License for the specific language governing permissions and limitations
+ *  under the License.
  *
  *  Version: $Id$
  */
 
 #include <assert.h>
 
-#if defined _UNICODE || defined __UNICODE__ || defined UNICODE
+#if (defined _UNICODE || defined __UNICODE__ || defined UNICODE) && !defined MININI_ANSI
 # if !defined UNICODE   /* for Windows */
 #   define UNICODE
 # endif
@@ -44,6 +40,7 @@
   #define __T(s)    s
   #define _tcscat   strcat
   #define _tcschr   strchr
+  #define _tcscmp   strcmp
   #define _tcscpy   strcpy
   #define _tcsicmp  stricmp
   #define _tcslen   strlen
@@ -277,87 +274,60 @@ static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, I
  */
 int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename)
 {
-    INI_FILETYPE rfp;
-    INI_FILETYPE wfp;
-    TCHAR *sp, *ep;
-    TCHAR LocalBuffer[INI_BUFFERSIZE];
-    int len, match, count;
+  INI_FILETYPE rfp;
+  INI_FILETYPE wfp;
+  TCHAR *sp, *ep;
+  TCHAR LocalBuffer[INI_BUFFERSIZE];
+  int len, match, count;
 
-    assert(Filename!=NULL);
-    if (!ini_openread(Filename, &rfp)) {
-      /* If the .ini file doesn't exist, make a new file */
-      if (Key!=NULL && Value!=NULL) {
-        if (!ini_openwrite(Filename, &wfp))
-          return 0;
-        writesection(LocalBuffer, Section, &wfp);
-        writekey(LocalBuffer, Key, Value, &wfp);
-        ini_close(&wfp);
-      } /* if */
+  assert(Filename!=NULL);
+  if (!ini_openread(Filename, &rfp)) {
+    /* If the .ini file doesn't exist, make a new file */
+    if (Key!=NULL && Value!=NULL) {
+      if (!ini_openwrite(Filename, &wfp))
+        return 0;
+      writesection(LocalBuffer, Section, &wfp);
+      writekey(LocalBuffer, Key, Value, &wfp);
+      ini_close(&wfp);
+    } /* if */
+    return 1;
+  } /* if */
+
+  /* If parameters Key and Value are valid (so this is not an "erase" request)
+   * and the setting already exists and it already has the correct value, do
+   * nothing. This early bail-out avoids rewriting the INI file for no reason.
+   */
+  if (Key!=NULL && Value!=NULL) {
+    match = getkeystring(&rfp, Section, Key, -1, -1, LocalBuffer, sizearray(LocalBuffer));
+    if (match && _tcscmp(LocalBuffer,Value)==0) {
+      ini_close(&rfp);
       return 1;
     } /* if */
+    /* key not found, or different value -> proceed (but rewind the input file first) */
+    ini_rewind(&rfp);
+  } /* if */
 
-    /* Get a temporary file name to copy to. Use the existing name, but with
-     * the last character set to a '~'.
-     */
-    ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
-    if (!ini_openwrite(LocalBuffer, &wfp)) {
-      ini_close(&rfp);
-      return 0;
-    } /* if */
+  /* Get a temporary file name to copy to. Use the existing name, but with
+   * the last character set to a '~'.
+   */
+  ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+  if (!ini_openwrite(LocalBuffer, &wfp)) {
+    ini_close(&rfp);
+    return 0;
+  } /* if */
 
-    /* Move through the file one line at a time until a section is
-     * matched or until EOF. Copy to temp file as it is read.
-     */
-    count = 0;
-    len = (Section != NULL) ? _tcslen(Section) : 0;
-    if (len > 0) {
-      do {
-        if (!ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
-          /* Failed to find section, so add one to the end */
-          if (Key!=NULL && Value!=NULL) {
-              ini_write(INI_LINETERM, &wfp);  /* force a new line (there may not have been one) behind the last line of the INI file */
-              writesection(LocalBuffer, Section, &wfp);
-              writekey(LocalBuffer, Key, Value, &wfp);
-          } /* if */
-          /* Clean up and rename */
-          ini_close(&rfp);
-          ini_close(&wfp);
-          ini_remove(Filename);
-          ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
-          ini_rename(LocalBuffer, Filename);
-          return 1;
-        } /* if */
-        /* Copy the line from source to dest, but not if this is the section that
-         * we are looking for and this section must be removed
-         */
-        sp = skipleading(LocalBuffer);
-        ep = _tcschr(sp, ']');
-        match = (*sp == '[' && ep != NULL && (int)(ep-sp-1) == len && _tcsnicmp(sp + 1,Section,len) == 0);
-        if (!match || Key!=NULL) {
-          /* Remove blank lines, but insert a blank line (possibly one that was
-           * removed on the previous iteration) before a new section. This creates
-           * "neat" INI files.
-           */
-          if (_tcslen(sp) > 0) {
-            if (*sp == '[' && count > 0)
-              ini_write(INI_LINETERM, &wfp);
-            ini_write(sp, &wfp);
-            count++;
-          } /* if */
-        } /* if */
-      } while (!match);
-    } /* if */
-
-    /* Now that the section has been found, find the entry. Stop searching
-     * upon leaving the section's area. Copy the file as it is read
-     * and create an entry if one is not found.
-     */
-    len = (Key!=NULL) ? _tcslen(Key) : 0;
-    for( ;; ) {
+  /* Move through the file one line at a time until a section is
+   * matched or until EOF. Copy to temp file as it is read.
+   */
+  count = 0;
+  len = (Section != NULL) ? _tcslen(Section) : 0;
+  if (len > 0) {
+    do {
       if (!ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
-        /* EOF without an entry so make one */
+        /* Failed to find section, so add one to the end */
         if (Key!=NULL && Value!=NULL) {
             ini_write(INI_LINETERM, &wfp);  /* force a new line (there may not have been one) behind the last line of the INI file */
+            writesection(LocalBuffer, Section, &wfp);
             writekey(LocalBuffer, Key, Value, &wfp);
         } /* if */
         /* Clean up and rename */
@@ -368,72 +338,111 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
         ini_rename(LocalBuffer, Filename);
         return 1;
       } /* if */
-      sp = skipleading(LocalBuffer);
-      ep = _tcschr(sp, '='); /* Parse out the equal sign */
-      if (ep == NULL)
-        ep = _tcschr(sp, ':');
-      match = (ep != NULL && (int)(ep-sp) == len && _tcsnicmp(sp,Key,len) == 0);
-      if ((Key!=NULL && match) || *sp == '[')
-        break;  /* found the key, or found a new section */
-      /* in the section that we re-write, do not copy empty lines */
-      if (Key!=NULL && _tcslen(sp) > 0)
-        ini_write(sp, &wfp);
-    } /* for */
-    if (*sp == '[') {
-      /* found start of new section, the key was not in the specified
-       * section, so we add it just before the new section
+      /* Copy the line from source to dest, but not if this is the section that
+       * we are looking for and this section must be removed
        */
-      if (Key!=NULL && Value!=NULL) {
-        /* We cannot use "writekey()" here, because we need to preserve the
-         * contents of LocalBuffer.
+      sp = skipleading(LocalBuffer);
+      ep = _tcschr(sp, ']');
+      match = (*sp == '[' && ep != NULL && (int)(ep-sp-1) == len && _tcsnicmp(sp + 1,Section,len) == 0);
+      if (!match || Key!=NULL) {
+        /* Remove blank lines, but insert a blank line (possibly one that was
+         * removed on the previous iteration) before a new section. This creates
+         * "neat" INI files.
          */
-        ini_write(Key, &wfp);
-        ini_write("=", &wfp);
-        ini_write(Value, &wfp);
-        ini_write(INI_LINETERM INI_LINETERM, &wfp); /* put a blank line between the current and the next section */
+        if (_tcslen(sp) > 0) {
+          if (*sp == '[' && count > 0)
+            ini_write(INI_LINETERM, &wfp);
+          ini_write(sp, &wfp);
+          count++;
+        } /* if */
       } /* if */
-      /* write the new section header that we read previously */
-      ini_write(sp, &wfp);
-    } else {
-      /* We found the key; ignore the line just read (with the key and
-       * the current value) and write the key with the new value.
-       */
-      if (Key!=NULL && Value!=NULL)
-        writekey(LocalBuffer, Key, Value, &wfp);
+    } while (!match);
+  } /* if */
+
+  /* Now that the section has been found, find the entry. Stop searching
+   * upon leaving the section's area. Copy the file as it is read
+   * and create an entry if one is not found.
+   */
+  len = (Key!=NULL) ? _tcslen(Key) : 0;
+  for( ;; ) {
+    if (!ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
+      /* EOF without an entry so make one */
+      if (Key!=NULL && Value!=NULL) {
+          ini_write(INI_LINETERM, &wfp);  /* force a new line (there may not have been one) behind the last line of the INI file */
+          writekey(LocalBuffer, Key, Value, &wfp);
+      } /* if */
+      /* Clean up and rename */
+      ini_close(&rfp);
+      ini_close(&wfp);
+      ini_remove(Filename);
+      ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+      ini_rename(LocalBuffer, Filename);
+      return 1;
     } /* if */
-    /* Copy the rest of the INI file (removing empty lines, except before a section) */
-    while (ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
-      sp = skipleading(LocalBuffer);
-      if (_tcslen(sp) > 0) {
-        if (*sp == '[')
-          ini_write(INI_LINETERM, &wfp);
-        ini_write(sp, &wfp);
-      } /* if */
-    } /* while */
-    /* Clean up and rename */
-    ini_close(&rfp);
-    ini_close(&wfp);
-    ini_remove(Filename);
-    ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
-    ini_rename(LocalBuffer, Filename);
-    return 1;
+    sp = skipleading(LocalBuffer);
+    ep = _tcschr(sp, '='); /* Parse out the equal sign */
+    if (ep == NULL)
+      ep = _tcschr(sp, ':');
+    match = (ep != NULL && (int)(ep-sp) == len && _tcsnicmp(sp,Key,len) == 0);
+    if ((Key!=NULL && match) || *sp == '[')
+      break;  /* found the key, or found a new section */
+    /* in the section that we re-write, do not copy empty lines */
+    if (Key!=NULL && _tcslen(sp) > 0)
+      ini_write(sp, &wfp);
+  } /* for */
+  if (*sp == '[') {
+    /* found start of new section, the key was not in the specified
+     * section, so we add it just before the new section
+     */
+    if (Key!=NULL && Value!=NULL) {
+      /* We cannot use "writekey()" here, because we need to preserve the
+       * contents of LocalBuffer.
+       */
+      ini_write(Key, &wfp);
+      ini_write("=", &wfp);
+      ini_write(Value, &wfp);
+      ini_write(INI_LINETERM INI_LINETERM, &wfp); /* put a blank line between the current and the next section */
+    } /* if */
+    /* write the new section header that we read previously */
+    ini_write(sp, &wfp);
+  } else {
+    /* We found the key; ignore the line just read (with the key and
+     * the current value) and write the key with the new value.
+     */
+    if (Key!=NULL && Value!=NULL)
+      writekey(LocalBuffer, Key, Value, &wfp);
+  } /* if */
+  /* Copy the rest of the INI file (removing empty lines, except before a section) */
+  while (ini_read(LocalBuffer, INI_BUFFERSIZE, &rfp)) {
+    sp = skipleading(LocalBuffer);
+    if (_tcslen(sp) > 0) {
+      if (*sp == '[')
+        ini_write(INI_LINETERM, &wfp);
+      ini_write(sp, &wfp);
+    } /* if */
+  } /* while */
+  /* Clean up and rename */
+  ini_close(&rfp);
+  ini_close(&wfp);
+  ini_remove(Filename);
+  ini_tempname(LocalBuffer, Filename, INI_BUFFERSIZE);
+  ini_rename(LocalBuffer, Filename);
+  return 1;
 }
 
-/*
- * Ansi C "itoa" based on Kernighan & Ritchie's "Ansi C":
- */
+/* Ansi C "itoa" based on Kernighan & Ritchie's "Ansi C" book. */
 #define ABS(v)  ((v) < 0 ? -(v) : (v))
 
 static void strreverse(TCHAR *str)
 {
-	TCHAR t;
-	int i, j;
+  TCHAR t;
+  int i, j;
 
-	for (i = 0, j = _tcslen(str) - 1; i < j; i++, j--) {
-	  t = str[i];
-	  str[i] = str[j];
-	  str[j] = t;
-	} /* for */
+  for (i = 0, j = _tcslen(str) - 1; i < j; i++, j--) {
+    t = str[i];
+    str[i] = str[j];
+    str[j] = t;
+  } /* for */
 }
 
 static void long2str(long value, TCHAR *str)
