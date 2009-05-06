@@ -20,8 +20,6 @@
  *  Version: $Id$
  */
 
-#define INI_BUFFERSIZE  512       /* maximum line length, maximum path length */
-
 /* map required file I/O to the standard C library */
 #include <stdio.h>
 #define ini_openread(filename,file)   ((*(file) = fopen((filename),"rt")) != NULL)

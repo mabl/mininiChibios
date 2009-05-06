@@ -1,3 +1,7 @@
+/* Simple test program
+ *
+ * wcl386 -wx -d2 -q test.c minini.c
+ */
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

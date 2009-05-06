@@ -33,6 +33,12 @@ public:
         return ini_getl(Section.utf8_str(), Key.utf8_str(), DefValue, name.utf8_str());
         }
 
+    int geti(const wxString& Section, const wxString& Key, int DefValue=0, const wxString& Filename=wxT(""))
+        {
+        wxString name = Filename.Len() > 0 ? Filename : iniFilename;
+        return (int)ini_getl(Section.utf8_str(), Key.utf8_str(), DefValue, name.utf8_str());
+        }
+
     wxString gets(const wxString& Section, const wxString& Key, const wxString& DefValue=wxT(""), const wxString& Filename=wxT(""))
         {
         wxString name = Filename.Len() > 0 ? Filename : iniFilename;
@@ -42,13 +48,19 @@ public:
         return result;
         }
 
-    bool putl(const wxString& Section, const wxString& Key, long Value, const wxString& Filename=wxT(""))
+    bool put(const wxString& Section, const wxString& Key, long Value, const wxString& Filename=wxT(""))
         {
         wxString name = Filename.Len() > 0 ? Filename : iniFilename;
         return ini_putl(Section.utf8_str(), Key.utf8_str(), Value, name.utf8_str());
         }
 
-    bool puts(const wxString& Section, const wxString& Key, const wxString& Value, const wxString& Filename=wxT(""))
+    bool put(const wxString& Section, const wxString& Key, int Value, const wxString& Filename=wxT(""))
+        {
+        wxString name = Filename.Len() > 0 ? Filename : iniFilename;
+        return ini_putl(Section.utf8_str(), Key.utf8_str(), Value, name.utf8_str());
+        }
+
+    bool put(const wxString& Section, const wxString& Key, const wxString& Value, const wxString& Filename=wxT(""))
         {
         wxString name = Filename.Len() > 0 ? Filename : iniFilename;
         return ini_puts(Section.utf8_str(), Key.utf8_str(), Value.utf8_str(), name.utf8_str());

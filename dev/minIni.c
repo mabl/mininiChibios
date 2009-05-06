@@ -20,8 +20,6 @@
  *  Version: $Id$
  */
 
-#include <assert.h>
-
 #if (defined _UNICODE || defined __UNICODE__ || defined UNICODE) && !defined MININI_ANSI
 # if !defined UNICODE   /* for Windows */
 #   define UNICODE
@@ -32,6 +30,11 @@
 #endif
 
 #include "minIni.h"
+#if defined NDEBUG
+  #define assert(e)
+#else
+  #include <assert.h>
+#endif
 
 #if !defined __T
   #include <string.h>
@@ -61,11 +64,11 @@
 #if defined FREEBSD && !defined __FreeBSD__
   #define __FreeBSD__
 #endif
-#if defined __LINUX__ || defined __FreeBSD__ || defined __OpenBSD__ || defined __GNUC__
-  #define strnicmp  strncasecmp
+#if !defined strnicmp
+  #if defined __LINUX__ || defined __FreeBSD__ || defined __OpenBSD__
+    #define strnicmp  strncasecmp
+  #endif
 #endif
-
-#include "minGlue.h"
 
 #if !defined INI_LINETERM
   #define INI_LINETERM    __T("\n")
@@ -132,7 +135,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
         return 0;
       sp = skipleading(LocalBuffer);
       ep = _tcschr(sp, ']');
-    } while (*sp != '[' || ep == NULL || ((int)(ep-sp-1) != len || _tcsnicmp(sp+1,Section,len) != 0) && ++idx != idxSection);
+    } while (*sp != '[' || ep == NULL || (((int)(ep-sp-1) != len || _tcsnicmp(sp+1,Section,len) != 0) && ++idx != idxSection));
     if (idxSection >= 0) {
       if (idx == idxSection) {
         assert(ep != NULL);
@@ -158,9 +161,12 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
     ep = _tcschr(sp, '='); /* Parse out the equal sign */
     if (ep == NULL)
       ep = _tcschr(sp, ':');
-  } while (*sp == ';' || *sp == '#' || ep == NULL || ((int)(skiptrailing(ep,sp)-sp) != len || _tcsnicmp(sp,Key,len) != 0) && ++idx != idxKey);
+  } while (*sp == ';' || *sp == '#' || ep == NULL || (((int)(skiptrailing(ep,sp)-sp) != len || _tcsnicmp(sp,Key,len) != 0) && ++idx != idxKey));
   if (idxKey >= 0) {
     if (idx == idxKey) {
+      assert(ep != NULL);
+      assert(*ep == '=' || *ep == ':');
+      *ep = '\0';
       striptrailing(sp);
       save_strncpy(Buffer, sp, BufferSize);
       return 1;
@@ -224,6 +230,58 @@ long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR
   return (len == 0) ? DefValue : _tcstol(buff,NULL,10);
 }
 
+/** ini_getsection()
+ * \param idx         the zero-based sequence number of the section to return
+ * \param Buffer      a pointer to the buffer to copy into
+ * \param BufferSize  the maximum number of characters to copy
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ * \return            the number of characters copied into the supplied buffer
+ */
+int  ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
+{
+  INI_FILETYPE fp;
+  int ok = 0;
+
+  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
+    return 0;
+  if (ini_openread(Filename, &fp)) {
+    ok = getkeystring(&fp, NULL, NULL, idx, -1, Buffer, BufferSize);
+    ini_close(&fp);
+  } /* if */
+  if (!ok)
+    *Buffer = '\0';
+  return _tcslen(Buffer);
+}
+
+/** ini_getkey()
+ * \param Section     the name of the section to browse through, or NULL to
+ *                    browse through the keys outside any section
+ * \param idx         the zero-based sequence number of the key to return
+ * \param Buffer      a pointer to the buffer to copy into
+ * \param BufferSize  the maximum number of characters to copy
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ * \return            the number of characters copied into the supplied buffer
+ */
+int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
+{
+  INI_FILETYPE fp;
+  int ok = 0;
+
+  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
+    return 0;
+  if (ini_openread(Filename, &fp)) {
+    ok = getkeystring(&fp, Section, NULL, -1, idx, Buffer, BufferSize);
+    ini_close(&fp);
+  } /* if */
+  if (!ok)
+    *Buffer = '\0';
+  return _tcslen(Buffer);
+}
+
+
+#if ! defined INI_READONLY
 static void ini_tempname(TCHAR *dest, const TCHAR *source, int maxlength)
 {
   TCHAR *p;
@@ -477,56 +535,8 @@ int ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Fi
   long2str(Value, str);
   return ini_puts(Section, Key, str, Filename);
 }
+#endif /* !INI_READONLY */
 
-/** ini_getsection()
- * \param idx         the zero-based sequence number of the section to return
- * \param Buffer      a pointer to the buffer to copy into
- * \param BufferSize  the maximum number of characters to copy
- * \param Filename    the name and full path of the .ini file to read from
- *
- * \return            the number of characters copied into the supplied buffer
- */
-int  ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
-{
-  INI_FILETYPE fp;
-  int ok = 0;
-
-  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
-    return 0;
-  if (ini_openread(Filename, &fp)) {
-    ok = getkeystring(&fp, NULL, NULL, idx, -1, Buffer, BufferSize);
-    ini_close(&fp);
-  } /* if */
-  if (!ok)
-    *Buffer = '\0';
-  return _tcslen(Buffer);
-}
-
-/** ini_getkey()
- * \param Section     the name of the section to browse through, or NULL to
- *                    browse through the keys outside any section
- * \param idx         the zero-based sequence number of the key to return
- * \param Buffer      a pointer to the buffer to copy into
- * \param BufferSize  the maximum number of characters to copy
- * \param Filename    the name and full path of the .ini file to read from
- *
- * \return            the number of characters copied into the supplied buffer
- */
-int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename)
-{
-  INI_FILETYPE fp;
-  int ok = 0;
-
-  if (Buffer == NULL || BufferSize <= 0 || idx < 0)
-    return 0;
-  if (ini_openread(Filename, &fp)) {
-    ok = getkeystring(&fp, Section, NULL, -1, idx, Buffer, BufferSize);
-    ini_close(&fp);
-  } /* if */
-  if (!ok)
-    *Buffer = '\0';
-  return _tcslen(Buffer);
-}
 
 #if defined PORTABLE_STRNICMP
 int strnicmp(const TCHAR *s1, const TCHAR *s2, size_t n)
@@ -545,4 +555,4 @@ int strnicmp(const TCHAR *s1, const TCHAR *s2, size_t n)
   } /* while */
   return 0;
 }
-#endif
+#endif /* PORTABLE_STRNICMP */

@@ -16,11 +16,7 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  *  License for the specific language governing permissions and limitations
  *  under the License.
- *
- *  Version: $Id$
  */
-
-#define INI_BUFFERSIZE  512       /* maximum line length, maximum path length */
 
 /* map required file I/O to the standard C library */
 #include <stdio.h>

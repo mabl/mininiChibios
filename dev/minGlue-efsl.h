@@ -14,8 +14,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  *  License for the specific language governing permissions and limitations
  *  under the License.
- *
- *  Version: $Id$
  */
 
 #define INI_BUFFERSIZE  256       /* maximum line length, maximum path length */
@@ -27,10 +25,8 @@
 
 extern EmbeddedFileSystem g_efs;
 
-#define ini_openread(filename,file)   (file_fopen((file),&g_efs.myFs, \
-                                        (char*)(filename),'r') == 0)
-#define ini_openwrite(filename,file)  (file_fopen((file),&g_efs.myFs, \
-                                        (char*)(filename),'w') == 0)
+#define ini_openread(filename,file)   (file_fopen((file),&g_efs.myFs,(char*)(filename),'r') == 0)
+#define ini_openwrite(filename,file)  (file_fopen((file),&g_efs.myFs,(char*)(filename),'w') == 0)
 #define ini_close(file)               file_fclose(file)
 #define ini_read(buffer,size,file)    (file_read((file),(size),(buffer)) > 0)
 #define ini_write(buffer,file)        file_write((file),strlen(buffer),(char*)(buffer))
@@ -52,11 +48,10 @@ static int ini_rename(char *source, const char *dest)
   if (file_fopen(&fw, &g_efs.myFs, (char*)dest, 'w') != 0)
     return 0;
 
-  /* With some "insider knowledge", we can save some memory: the
-   * "source" parameter holds a filename that was built from the
-   * "dest" parameter. It was built in buffer and this buffer has
-   * the size INI_BUFFERSIZE. We can reuse this buffer for copying
-   * the file.
+  /* With some "insider knowledge", we can save some memory: the "source"
+   * parameter holds a filename that was built from the "dest" parameter. It
+   * was built in buffer and this buffer has the size INI_BUFFERSIZE. We can
+   * reuse this buffer for copying the file.
    */
   while (n=file_read(&fr, INI_BUFFERSIZE, source))
     file_write(&fw, n, source);
@@ -64,9 +59,8 @@ static int ini_rename(char *source, const char *dest)
   file_fclose(&fr);
   file_fclose(&fw);
 
-  /* Now we need to delete the source file. However, we have garbled
-   * the buffer that held the filename of the source. So we need to
-   * build it again.
+  /* Now we need to delete the source file. However, we have garbled the buffer
+   * that held the filename of the source. So we need to build it again.
    */
   ini_tempname(source, dest, INI_BUFFERSIZE);
   return rmfile(&g_efs.myFs, source) == 0;
