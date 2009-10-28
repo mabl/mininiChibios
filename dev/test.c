@@ -37,10 +37,10 @@ int main(void)
   printf("2. Value reading tests passed\n");
 
   /* string writing */
-  n = ini_puts("first", "alt", "correct", inifile);
+  n = ini_puts("first", "alt", "flagged as \"correct\"", inifile);
   assert(n==1);
   n = ini_gets("first", "alt", "aap", str, sizearray(str), inifile);
-  assert(n==7 && strcmp(str,"correct")==0);
+  assert(n==20 && strcmp(str,"flagged as \"correct\"")==0);
   /* ----- */
   n = ini_puts("second", "alt", "correct", inifile);
   assert(n==1);
@@ -61,7 +61,7 @@ int main(void)
       printf("\t%s\n", str);
     } /* for */
   } /* for */
-  
+
   /* string deletion */
   n = ini_puts("first", "alt", NULL, inifile);
   assert(n==1);

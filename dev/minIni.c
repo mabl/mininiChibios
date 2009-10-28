@@ -81,6 +81,11 @@
   #define sizearray(a)    (sizeof(a) / sizeof((a)[0]))
 #endif
 
+enum quote_option {
+  QUOTE_NONE,
+  QUOTE_ENQUOTE,
+  QUOTE_DEQUOTE,
+};
 
 static TCHAR *skipleading(const TCHAR *str)
 {
@@ -107,11 +112,45 @@ static TCHAR *striptrailing(TCHAR *str)
   return str;
 }
 
-static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen)
+static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen, enum quote_option option)
 {
+  int d, s;
+
   assert(maxlen>0);
-  _tcsncpy(dest,source,maxlen);
-  dest[maxlen-1]='\0';
+  if (option == QUOTE_ENQUOTE && maxlen < 3)
+    option = QUOTE_NONE;  /* cannot store two quotes and a terminating zero in less than 3 characters */
+
+  switch (option) {
+  case QUOTE_NONE:
+    _tcsncpy(dest,source,maxlen);
+    dest[maxlen-1]='\0';
+    break;
+  case QUOTE_ENQUOTE:
+    d = 0;
+    dest[d++] = '"';
+    for (s = 0; source[s] != '\0' && d < maxlen - 2; s++, d++) {
+      if (source[s] == '"') {
+        if (d >= maxlen - 3)
+          break;  /* no space to store the escape character plus the one that follows it */
+        dest[d++] = '\\';
+      } /* if */
+      dest[d] = source[s];
+    } /* for */
+    dest[d++] = '"';
+    dest[d] = '\0';
+    break;
+  case QUOTE_DEQUOTE:
+    for (d = s = 0; source[s] != '\0' && d < maxlen - 1; s++, d++) {
+      if ((source[s] == '"' || source[s] == '\\') && source[s + 1] == '"')
+        s++;
+      dest[d] = source[s];
+    } /* for */
+    dest[d] = '\0';
+    break;
+  default:
+    assert(0);
+  } /* switch */
+
   return dest;
 }
 
@@ -119,7 +158,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
                         int idxSection, int idxKey, TCHAR *Buffer, int BufferSize)
 {
   TCHAR *sp, *ep;
-  int len, idx;
+  int len, idx, isstring;
   TCHAR LocalBuffer[INI_BUFFERSIZE];
 
   assert(fp != NULL);
@@ -141,7 +180,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
         assert(ep != NULL);
         assert(*ep == ']');
         *ep = '\0';
-        save_strncpy(Buffer, sp + 1, BufferSize);
+        save_strncpy(Buffer, sp + 1, BufferSize, QUOTE_NONE);
         return 1;
       } /* if */
       return 0; /* no more section found */
@@ -168,7 +207,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
       assert(*ep == '=' || *ep == ':');
       *ep = '\0';
       striptrailing(sp);
-      save_strncpy(Buffer, sp, BufferSize);
+      save_strncpy(Buffer, sp, BufferSize, QUOTE_NONE);
       return 1;
     } /* if */
     return 0;   /* no more key found (in this section) */
@@ -178,13 +217,29 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
   assert(ep != NULL);
   assert(*ep == '=' || *ep == ':');
   sp = skipleading(ep + 1);
+  /* Remove a trailing comment */
+  isstring = 0;
+  for (ep = sp; *ep != '\0' && ((*ep != ';' && *ep != '#') || isstring); ep++) {
+    if (*ep == '"') {
+      if (*(ep + 1) == '"')
+        ep++;                 /* skip "" (both quotes) */
+      else
+        isstring = !isstring; /* single quote, toggle isstring */
+    } else if (*ep == '\\' && *(ep + 1) == '"') {
+      ep++;                   /* skip \" (both quotes */
+    } /* if */
+  } /* for */
+  assert(ep != NULL && (*ep == '\0' || *ep == ';' || *ep == '#'));
+  *ep = '\0';                 /* terminate at a comment */
   striptrailing(sp);
   /* Remove double quotes surrounding a value */
+  isstring = QUOTE_NONE;
   if (*sp == '"' && (ep = _tcschr(sp, '\0')) != NULL && *(ep - 1) == '"') {
     sp++;
     *--ep = '\0';
+    isstring = QUOTE_DEQUOTE; /* this is a string, so remove escaped characters */
   } /* if */
-  save_strncpy(Buffer, sp, BufferSize);
+  save_strncpy(Buffer, sp, BufferSize, isstring);
   return 1;
 }
 
@@ -211,7 +266,7 @@ int ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue,
     ini_close(&fp);
   } /* if */
   if (!ok)
-    save_strncpy(Buffer, DefValue, BufferSize);
+    save_strncpy(Buffer, DefValue, BufferSize, QUOTE_NONE);
   return _tcslen(Buffer);
 }
 
@@ -286,10 +341,23 @@ static void ini_tempname(TCHAR *dest, const TCHAR *source, int maxlength)
 {
   TCHAR *p;
 
-  save_strncpy(dest, source, maxlength);
+  save_strncpy(dest, source, maxlength, QUOTE_NONE);
   p = _tcsrchr(dest, '\0');
   assert(p != NULL);
   *(p - 1) = '~';
+}
+
+static enum quote_option check_enquote(const TCHAR *Value)
+{
+  const TCHAR *p;
+
+  /* run through the value, if it has trailing spaces, or '"', ';' or '#'
+   * characters, enquote it
+   */
+  assert(Value != NULL);
+  for (p = Value; *p != '\0' && *p != '"' && *p != ';' && *p != '#'; p++)
+    /* nothing */;
+  return (*p != '\0' || (p > Value && *(p - 1) == ' ')) ? QUOTE_ENQUOTE : QUOTE_NONE;
 }
 
 static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, INI_FILETYPE *fp)
@@ -298,7 +366,7 @@ static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, INI_FILETYPE 
 
   if (Section != NULL && _tcslen(Section) > 0) {
     LocalBuffer[0] = '[';
-    save_strncpy(LocalBuffer + 1, Section, INI_BUFFERSIZE - 4);  /* -1 for '[', -1 for ']', -2 for '\r\n' */
+    save_strncpy(LocalBuffer + 1, Section, INI_BUFFERSIZE - 4, QUOTE_NONE);  /* -1 for '[', -1 for ']', -2 for '\r\n' */
     p = _tcsrchr(LocalBuffer, '\0');
     assert(p != NULL);
     *p++ = ']';
@@ -310,16 +378,39 @@ static void writesection(TCHAR *LocalBuffer, const TCHAR *Section, INI_FILETYPE 
 static void writekey(TCHAR *LocalBuffer, const TCHAR *Key, const TCHAR *Value, INI_FILETYPE *fp)
 {
   TCHAR *p;
-
-  save_strncpy(LocalBuffer, Key, INI_BUFFERSIZE - 3);  /* -1 for '=', -2 for '\r\n' */
+  enum quote_option option = check_enquote(Value);
+  save_strncpy(LocalBuffer, Key, INI_BUFFERSIZE - 3, QUOTE_NONE);  /* -1 for '=', -2 for '\r\n' */
   p = _tcsrchr(LocalBuffer, '\0');
   assert(p != NULL);
   *p++ = '=';
-  save_strncpy(p, Value, INI_BUFFERSIZE - (p - LocalBuffer) - 2); /* -2 for '\r\n' */
+  save_strncpy(p, Value, INI_BUFFERSIZE - (p - LocalBuffer) - 2, option); /* -2 for '\r\n' */
   p = _tcsrchr(LocalBuffer, '\0');
   assert(p != NULL);
   _tcscpy(p, INI_LINETERM); /* copy line terminator (typically "\n") */
   ini_write(LocalBuffer, fp);
+}
+
+static void write_quoted(const TCHAR *Value, INI_FILETYPE *fp)
+{
+  TCHAR s[3];
+  int idx;
+  if (check_enquote(Value) == QUOTE_NONE) {
+    ini_write(Value, fp);
+  } else {
+    ini_write("\"", fp);
+    for (idx = 0; Value[idx] != '\0'; idx++) {
+      if (Value[idx] == '"') {
+        s[0] = '\\';
+        s[1] = Value[idx];
+        s[2] = '\0';
+      } else {
+        s[0] = Value[idx];
+        s[1] = '\0';
+      } /* if */
+      ini_write(s, fp);
+    } /* for */
+    ini_write("\"", fp);
+  } /* if */
 }
 
 /** ini_puts()
@@ -441,7 +532,7 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
     ep = _tcschr(sp, '='); /* Parse out the equal sign */
     if (ep == NULL)
       ep = _tcschr(sp, ':');
-    match = (ep != NULL && (int)(ep-sp) == len && _tcsnicmp(sp,Key,len) == 0);
+    match = (ep != NULL && (int)(skiptrailing(ep,sp)-sp) == len && _tcsnicmp(sp,Key,len) == 0);
     if ((Key!=NULL && match) || *sp == '[')
       break;  /* found the key, or found a new section */
     /* in the section that we re-write, do not copy empty lines */
@@ -458,7 +549,7 @@ int ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const T
        */
       ini_write(Key, &wfp);
       ini_write("=", &wfp);
-      ini_write(Value, &wfp);
+      write_quoted(Value, &wfp);
       ini_write(INI_LINETERM INI_LINETERM, &wfp); /* put a blank line between the current and the next section */
     } /* if */
     /* write the new section header that we read previously */
