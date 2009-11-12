@@ -65,7 +65,7 @@
   #define __FreeBSD__
 #endif
 #if !defined strnicmp
-  #if defined __LINUX__ || defined __FreeBSD__ || defined __OpenBSD__
+  #if defined __LINUX__ || defined __FreeBSD__ || defined __OpenBSD__ || defined __APPLE__
     #define strnicmp  strncasecmp
   #endif
 #endif
@@ -114,7 +114,7 @@ static TCHAR *striptrailing(TCHAR *str)
 
 static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen, enum quote_option option)
 {
-  int d, s;
+  size_t d, s;
 
   assert(maxlen>0);
   if (option == QUOTE_ENQUOTE && maxlen < 3)
