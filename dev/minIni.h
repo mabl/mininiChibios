@@ -74,27 +74,35 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
         return buffer;
       }
 
-    int getsection(int idx, TCHAR *Buffer, int BufferSize) const
-      { return ini_getsection(idx, Buffer, BufferSize, iniFilename.c_str()); }
+    std::string getsection(int idx) const
+      {
+        char buffer[INI_BUFFERSIZE];
+        ini_getsection(idx, buffer, INI_BUFFERSIZE, iniFilename.c_str());
+        return buffer;
+      }
 
-    int getkey(const std::string& Section, int idx, TCHAR *Buffer, int BufferSize) const
-      { return ini_getsection(Section.c_str(), idx, Buffer, BufferSize, iniFilename.c_str()); }
+    std::string getkey(const std::string& Section, int idx) const
+      {
+        char buffer[INI_BUFFERSIZE];
+        ini_getkey(Section.c_str(), idx, buffer, INI_BUFFERSIZE, iniFilename.c_str());
+        return buffer;
+      }
 
 #if ! defined INI_READONLY
     bool put(const std::string& Section, const std::string& Key, long Value) const
-      { return ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+      { return (bool)ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
 
     bool put(const std::string& Section, const std::string& Key, int Value) const
-      { return ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
+      { return (bool)ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
 
     bool put(const std::string& Section, const std::string& Key, const std::string& Value) const
-      { return ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()); }
+      { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()); }
 
     bool del(const std::string& Section, const std::string& Key) const
-      { return ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()); }
+      { return (bool)ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()); }
 
     bool del(const std::string& Section) const
-      { return ini_puts(Section.c_str(), 0, 0, iniFilename.c_str()); }
+      { return (bool)ini_puts(Section.c_str(), 0, 0, iniFilename.c_str()); }
 #endif
 
   private:

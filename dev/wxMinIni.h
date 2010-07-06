@@ -41,21 +41,37 @@ public:
     return result;
     }
 
+  wxString getsection(int idx) const
+    {
+    char buffer[INI_BUFFERSIZE];
+    ini_getsection(idx, buffer, INI_BUFFERSIZE, iniFilename.utf8_str());
+    wxString result = wxString::FromUTF8(buffer);
+    return result;
+    }
+
+  wxString getkey(const wxString& Section, int idx) const
+    {
+    char buffer[INI_BUFFERSIZE];
+    ini_getkey(Section.c_str(), idx, buffer, INI_BUFFERSIZE, iniFilename.utf8_str());
+    wxString result = wxString::FromUTF8(buffer);
+    return result;
+    }
+
 #if ! defined INI_READONLY
   bool put(const wxString& Section, const wxString& Key, long Value) const
-    { return ini_putl(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
+    { return (bool)ini_putl(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
 
   bool put(const wxString& Section, const wxString& Key, int Value) const
-    { return ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()); }
+    { return (bool)ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()); }
 
   bool put(const wxString& Section, const wxString& Key, const wxString& Value) const
-    { return ini_puts(Section.utf8_str(), Key.utf8_str(), Value.utf8_str(), iniFilename.utf8_str()); }
+    { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), Value.utf8_str(), iniFilename.utf8_str()); }
 
   bool del(const wxString& Section, const wxString& Key) const
-    { return ini_puts(Section.utf8_str(), Key.utf8_str(), 0, iniFilename.utf8_str()); }
+    { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), 0, iniFilename.utf8_str()); }
 
   bool del(const wxString& Section) const
-    { return ini_puts(Section.utf8_str(), 0, 0, iniFilename.utf8_str()); }
+    { return (bool)ini_puts(Section.utf8_str(), 0, 0, iniFilename.utf8_str()); }
 #endif
 
 private:
