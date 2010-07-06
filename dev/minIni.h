@@ -1,6 +1,6 @@
 /*  minIni - Multi-Platform INI file parser, suitable for embedded systems
  *
- *  Copyright (c) ITB CompuPhase, 2008-2009
+ *  Copyright (c) ITB CompuPhase, 2008-2010
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -49,7 +49,7 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
 
 #if defined __cplusplus
 
-#if defined __WXWIDGETS__
+#if defined __WXWINDOWS__
 	#include "wxMinIni.h"
 #else
   #include <string>
@@ -64,8 +64,8 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
     long getl(const std::string& Section, const std::string& Key, long DefValue=0) const
       { return ini_getl(Section.c_str(), Key.c_str(), DefValue, iniFilename.c_str()); }
 
-    long geti(const std::string& Section, const std::string& Key, int DefValue=0) const
-      { return reinterpret_cast<int>( this->getl(Section, Key, DefValue) ); }
+    int geti(const std::string& Section, const std::string& Key, int DefValue=0) const
+      { return static_cast<int>(this->getl(Section, Key, long(DefValue))); }
 
     std::string gets(const std::string& Section, const std::string& Key, const std::string& DefValue="") const
       {
@@ -74,23 +74,34 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
         return buffer;
       }
 
+    int getsection(int idx, TCHAR *Buffer, int BufferSize) const
+      { return ini_getsection(idx, Buffer, BufferSize, iniFilename.c_str()); }
+
+    int getkey(const std::string& Section, int idx, TCHAR *Buffer, int BufferSize) const
+      { return ini_getsection(Section.c_str(), idx, Buffer, BufferSize, iniFilename.c_str()); }
+
+#if ! defined INI_READONLY
     bool put(const std::string& Section, const std::string& Key, long Value) const
       { return ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+
+    bool put(const std::string& Section, const std::string& Key, int Value) const
+      { return ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
 
     bool put(const std::string& Section, const std::string& Key, const std::string& Value) const
       { return ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()); }
 
-    int getsection(int idx, TCHAR *Buffer, int BufferSize) const
-      { return return ini_getsection(idx, Buffer, BufferSize, iniFilename.c_str()); }
+    bool del(const std::string& Section, const std::string& Key) const
+      { return ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()); }
 
-    int getkey(const std::string& Section, int idx, TCHAR *Buffer, int BufferSize) const
-      { return return ini_getsection(Section.c_str(), idx, Buffer, BufferSize, iniFilename.c_str()); }
+    bool del(const std::string& Section) const
+      { return ini_puts(Section.c_str(), 0, 0, iniFilename.c_str()); }
+#endif
 
   private:
     std::string iniFilename;
   };
 
-#endif /* __WXWIDGETS__ */
+#endif /* __WXWINDOWS__ */
 #endif /* __cplusplus */
 
 #endif /* MININI_H */

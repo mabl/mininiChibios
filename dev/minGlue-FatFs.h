@@ -1,7 +1,7 @@
 /*  Glue functions for the minIni library, based on the FatFs and Tiny-FatFs
  *  libraries, see http://elm-chan.org/fsw/ff/00index_e.html
  *
- *  Copyright (c) ITB CompuPhase, 2008-2009
+ *  Copyright (c) ITB CompuPhase, 2008-2010
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -27,8 +27,8 @@
 #define ini_openread(filename,file)   (f_open((file),(filename),FA_READ+FA_OPEN_EXISTING) == 0)
 #define ini_openwrite(filename,file)  (f_open((file),(filename),FA_WRITE+FA_CREATE_ALWAYS) == 0)
 #define ini_close(file)               f_close(file)
-#define ini_read(buffer,size,file)    fgets((buffer),(size),(file))
-#define ini_write(buffer,file)        fputs((buffer),(file))
+#define ini_read(buffer,size,file)    f_gets((buffer),(size),(file))
+#define ini_write(buffer,file)        f_puts((buffer),(file))
 #define ini_rename(source,dest)       f_rename((source),(dest))
 #define ini_remove(filename)          f_unlink(filename)
 #define ini_rewind(file)              f_lseek((file),0)
