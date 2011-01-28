@@ -3,7 +3,7 @@
  *  These routines are in part based on the article "Multiplatform .INI Files"
  *  by Joseph J. Graf in the March 1994 issue of Dr. Dobb's Journal.
  *
- *  Copyright (c) ITB CompuPhase, 2008-2010
+ *  Copyright (c) CompuPhase, 2008-2011
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -38,6 +38,7 @@
 #endif
 
 #if !defined __T
+  #include <ctype.h>
   #include <string.h>
   #include <stdlib.h>
   /* definition of TCHAR already in minIni.h */
@@ -52,6 +53,9 @@
   #define _tcsnicmp strnicmp
   #define _tcsrchr  strrchr
   #define _tcstol   strtol
+  #define _tcstod   strtod
+  #define _totupper toupper
+  #define _stprintf sprintf
   #define _tfgets   fgets
   #define _tfputs   fputs
   #define _tfopen   fopen
@@ -160,6 +164,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
 {
   TCHAR *sp, *ep;
   int len, idx, isstring;
+  enum quote_option quotes;
   TCHAR LocalBuffer[INI_BUFFERSIZE];
 
   assert(fp != NULL);
@@ -234,13 +239,13 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
   *ep = '\0';                 /* terminate at a comment */
   striptrailing(sp);
   /* Remove double quotes surrounding a value */
-  isstring = QUOTE_NONE;
+  quotes = QUOTE_NONE;
   if (*sp == '"' && (ep = _tcschr(sp, '\0')) != NULL && *(ep - 1) == '"') {
     sp++;
     *--ep = '\0';
-    isstring = QUOTE_DEQUOTE; /* this is a string, so remove escaped characters */
+    quotes = QUOTE_DEQUOTE;   /* this is a string, so remove escaped characters */
   } /* if */
-  save_strncpy(Buffer, sp, BufferSize, isstring);
+  save_strncpy(Buffer, sp, BufferSize, quotes);
   return 1;
 }
 
@@ -284,6 +289,67 @@ long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR
   TCHAR buff[64];
   int len = ini_gets(Section, Key, __T(""), buff, sizearray(buff), Filename);
   return (len == 0) ? DefValue : _tcstol(buff,NULL,10);
+}
+
+#if !defined INI_NOFLOAT
+/** ini_getf()
+ * \param Section     the name of the section to search for
+ * \param Key         the name of the entry to find the value of
+ * \param DefValue    the default value in the event of a failed read
+ * \param Filename    the name of the .ini file to read from
+ *
+ * \return            the value located at Key
+ */
+float ini_getf(const TCHAR *Section, const TCHAR *Key, float DefValue, const TCHAR *Filename)
+{
+  TCHAR buff[64];
+  int len = ini_gets(Section, Key, __T(""), buff, sizearray(buff), Filename);
+  return (len == 0) ? DefValue : (float)_tcstod(buff,NULL);
+}
+#endif
+
+/** ini_getbool()
+ * \param Section     the name of the section to search for
+ * \param Key         the name of the entry to find the value of
+ * \param DefValue    default value in the event of a failed read; it should
+ *                    zero (0) or one (1).
+ * \param Buffer      a pointer to the buffer to copy into
+ * \param BufferSize  the maximum number of characters to copy
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ A true boolean is found if one of the following is matched:
+
+  - A string starting with 'y'
+  - A string starting with 'Y'
+  - A string starting with 't'
+  - A string starting with 'T'
+  - A string starting with '1'
+
+  A false boolean is found if one of the following is matched:
+
+  - A string starting with 'n'
+  - A string starting with 'N'
+  - A string starting with 'f'
+  - A string starting with 'F'
+  - A string starting with '0'
+ *
+ * \return            the true/false flag as interpreted at Key
+ */
+int ini_getbool(const TCHAR *Section, const TCHAR *Key, int DefValue, const TCHAR *Filename)
+{
+  TCHAR buff[2];
+  int ret;
+
+  ini_gets(Section, Key, __T(""), buff, sizearray(buff), Filename);
+  buff[0] = toupper(buff[0]);
+  if (buff[0]=='Y' || buff[0]=='1' || buff[0]=='T')
+    ret = 1;
+  else if (buff[0]=='N' || buff[0]=='0' || buff[0]=='F')
+    ret = 0;
+  else
+    ret = DefValue;
+
+  return(ret);
 }
 
 /** ini_getsection()
@@ -615,7 +681,7 @@ static void long2str(long value, TCHAR *str)
 
 /** ini_putl()
  * \param Section     the name of the section to write the value in
- * \param Key         the name of the entry to write, or NULL to erase all keys in the section
+ * \param Key         the name of the entry to write
  * \param Value       the value to write
  * \param Filename    the name and full path of the .ini file to write to
  *
@@ -623,10 +689,27 @@ static void long2str(long value, TCHAR *str)
  */
 int ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename)
 {
-  TCHAR str[32];
-  long2str(Value, str);
-  return ini_puts(Section, Key, str, Filename);
+  TCHAR buff[32];
+  long2str(Value, buff);
+  return ini_puts(Section, Key, buff, Filename);
 }
+
+#if !defined INI_NOFLOAT
+/** ini_putf()
+ * \param Section     the name of the section to write the value in
+ * \param Key         the name of the entry to write
+ * \param Value       the value to write
+ * \param Filename    the name and full path of the .ini file to write to
+ *
+ * \return            1 if successful, otherwise 0
+ */
+int ini_putf(const TCHAR *Section, const TCHAR *Key, float Value, const TCHAR *Filename)
+{
+  TCHAR buff[64];
+  _stprintf(buff, __T("%f"), Value);
+  return ini_puts(Section, Key, buff, Filename);
+}
+#endif /* INI_FLOAT */
 #endif /* !INI_READONLY */
 
 

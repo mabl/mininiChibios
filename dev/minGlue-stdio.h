@@ -3,7 +3,7 @@
  *  Or better said: this file contains macros that maps the function interface
  *  used by minIni to the standard C/C++ file I/O functions.
  *
- *  Copyright (c) ITB CompuPhase, 2008-2010
+ *  Copyright (c) CompuPhase, 2008-2011
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy

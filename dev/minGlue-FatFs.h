@@ -1,7 +1,7 @@
 /*  Glue functions for the minIni library, based on the FatFs and Tiny-FatFs
  *  libraries, see http://elm-chan.org/fsw/ff/00index_e.html
  *
- *  Copyright (c) ITB CompuPhase, 2008-2010
+ *  Copyright (c) CompuPhase, 2008-2011
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy

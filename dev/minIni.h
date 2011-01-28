@@ -1,6 +1,6 @@
 /*  minIni - Multi-Platform INI file parser, suitable for embedded systems
  *
- *  Copyright (c) ITB CompuPhase, 2008-2010
+ *  Copyright (c) CompuPhase, 2008-2011
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -35,12 +35,23 @@
   extern "C" {
 #endif
 
-long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR *Filename);
-int  ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
-int  ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename);
-int  ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename);
-int  ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
-int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+int   ini_getbool(const TCHAR *Section, const TCHAR *Key, int DefValue, const TCHAR *Filename);
+long  ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR *Filename);
+int   ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+int   ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+int   ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+
+#if !defined INI_NOFLOAT
+float ini_getf(const TCHAR *Section, const TCHAR *Key, float DefValue, const TCHAR *Filename);
+#endif
+
+#if !defined INI_READONLY
+int   ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename);
+int   ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename);
+#if !defined INI_NOFLOAT
+int   ini_putf(const TCHAR *Section, const TCHAR *Key, float Value, const TCHAR *Filename);
+#endif /* INI_NOFLOAT */
+#endif /* INI_READONLY */
 
 #if defined __cplusplus
   }
@@ -60,6 +71,9 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
   public:
     minIni(const std::string& filename) : iniFilename(filename)
       { }
+
+    bool getbool(const std::string& Section, const std::string& Key, bool DefValue=false) const
+      { return static_cast<bool>(ini_getbool(Section.c_str(), Key.c_str(), int(DefValue), iniFilename.c_str())); }
 
     long getl(const std::string& Section, const std::string& Key, long DefValue=0) const
       { return ini_getl(Section.c_str(), Key.c_str(), DefValue, iniFilename.c_str()); }
@@ -88,6 +102,11 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
         return buffer;
       }
 
+#if !defined INI_NOFLOAT
+    float getf(const std::string& Section, const std::string& Key, float DefValue=0) const
+      { return ini_getf(Section.c_str(), Key.c_str(), DefValue, iniFilename.c_str()); }
+#endif
+
 #if ! defined INI_READONLY
     bool put(const std::string& Section, const std::string& Key, long Value) const
       { return (bool)ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
@@ -95,8 +114,19 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
     bool put(const std::string& Section, const std::string& Key, int Value) const
       { return (bool)ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
 
+    bool put(const std::string& Section, const std::string& Key, bool Value) const
+      { return (bool)ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
+
     bool put(const std::string& Section, const std::string& Key, const std::string& Value) const
       { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()); }
+
+    bool put(const std::string& Section, const std::string& Key, const char* Value) const
+      { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+
+#if !defined INI_NOFLOAT
+    bool put(const std::string& Section, const std::string& Key, float Value) const
+      { return (bool)ini_putf(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+#endif
 
     bool del(const std::string& Section, const std::string& Key) const
       { return (bool)ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()); }
