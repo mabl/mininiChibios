@@ -1,8 +1,9 @@
-/*  minIni glue functions for FAT library by CCS, Inc. (as provided with their
- *  PIC MCU compiler)
+/*  Glue functions for the minIni library, based on the C/C++ stdio library
  *
- *  Copyright (c) CompuPhase, 2011
- *  (The FAT library is copyright (c) 2007 Custom Computer Services)
+ *  Or better said: this file contains macros that maps the function interface
+ *  used by minIni to the standard C/C++ file I/O functions.
+ *
+ *  Copyright (c) CompuPhase, 2008-2011
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -17,56 +18,23 @@
  *  under the License.
  */
 
-#define INI_BUFFERSIZE  256       /* maximum line length, maximum path length */
+/* map required file I/O types and functions to the standard C library */
+#include <stdio.h>
 
-#ifndef FAT_PIC_C
-  #error FAT library must be included before this module
-#endif
-#define const                     /* keyword not supported by CCS */
+#define INI_FILETYPE                  FILE*
+#define ini_openread(filename,file)   ((*(file) = fopen((filename),"r")) != NULL)
+#define ini_openwrite(filename,file)  ((*(file) = fopen((filename),"w")) != NULL)
+#define ini_close(file)               (fclose(*(file)) == 0)
+#define ini_read(buffer,size,file)    (fgets((buffer),(size),*(file)) != NULL)
+#define ini_write(buffer,file)        (fputs((buffer),*(file)) >= 0)
+#define ini_rename(source,dest)       (rename((source), (dest)) == 0)
+#define ini_remove(filename)          (remove(filename) == 0)
 
-#define INI_FILETYPE                  FILE
-#define ini_openread(filename,file)   (fatopen((filename), "r", (file)) == GOODEC)
-#define ini_openwrite(filename,file)  (fatopen((filename), "w", (file)) == GOODEC)
-#define ini_close(file)               (fatclose((file)) == 0)
-#define ini_read(buffer,size,file)    (fatgets((buffer), (size), (file)) != NULL)
-#define ini_write(buffer,file)        (fatputs((buffer), (file)) == GOODEC)
-#define ini_remove(filename)          (rm_file((filename)) == 0)
+#define INI_FILEPOS                   fpos_t
+#define ini_tell(file,pos)            (fgetpos(*(file), (pos)) == 0)
+#define ini_seek(file,pos)            (fsetpos(*(file), (pos)) == 0)
 
-#define INI_FILEPOS                   fatpos_t
-#define ini_tell(file,pos)            (fatgetpos((file), (pos)) == 0)
-#define ini_seek(file,pos)            (fatsetpos((file), (pos)) == 0)
-
-#ifndef INI_READONLY
-/* CCS FAT library lacks a rename function, so instead we copy the file to the
- * new name and delete the old file
- */
-static int ini_rename(char *source, char *dest)
-{
-  FILE fr, fw;
-  int n;
-
-  if (fatopen(source, "r", &fr) != GOODEC)
-    return 0;
-  if (rm_file(dest) != 0)
-    return 0;
-  if (fatopen(dest, "w", &fw) != GOODEC)
-    return 0;
-
-  /* With some "insider knowledge", we can save some memory: the "source"
-   * parameter holds a filename that was built from the "dest" parameter. It
-   * was built in a local buffer with the size INI_BUFFERSIZE. We can reuse
-   * this buffer for copying the file.
-   */
-  while (n=fatread(source, 1, INI_BUFFERSIZE, &fr))
-    fatwrite(source, 1, n, &fw);
-
-  fatclose(&fr);
-  fatclose(&fw);
-
-  /* Now we need to delete the source file. However, we have garbled the buffer
-   * that held the filename of the source. So we need to build it again.
-   */
-  ini_tempname(source, dest, INI_BUFFERSIZE);
-  return rm_file(source) == 0;
-}
-#endif
+/* for floating-point support, define additional types and functions */
+#define INI_REAL                      float
+#define ini_ftoa(string,value)        sprintf((string),"%f",(value))
+#define ini_atof(string)              (INI_REAL)strtod((string),NULL)
