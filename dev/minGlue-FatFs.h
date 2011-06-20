@@ -22,13 +22,16 @@
  * to enable the "string functions" fgets() and fputs().
  */
 #include "ff.h"                   /* include tff.h for Tiny-FatFs */
-#define INI_FILETYPE    FIL
 
-#define ini_openread(filename,file)   (f_open((file),(filename),FA_READ+FA_OPEN_EXISTING) == 0)
-#define ini_openwrite(filename,file)  (f_open((file),(filename),FA_WRITE+FA_CREATE_ALWAYS) == 0)
-#define ini_close(file)               f_close(file)
-#define ini_read(buffer,size,file)    f_gets((buffer),(size),(file))
-#define ini_write(buffer,file)        f_puts((buffer),(file))
-#define ini_rename(source,dest)       f_rename((source),(dest))
-#define ini_remove(filename)          f_unlink(filename)
-#define ini_rewind(file)              f_lseek((file),0)
+#define INI_FILETYPE    FIL
+#define ini_openread(filename,file)   (f_open((file), (filename), FA_READ+FA_OPEN_EXISTING) == FR_OK)
+#define ini_openwrite(filename,file)  (f_open((file), (filename), FA_WRITE+FA_CREATE_ALWAYS) == FR_OK)
+#define ini_close(file)               (f_close(file) == FR_OK)
+#define ini_read(buffer,size,file)    f_gets((buffer), (size),(file))
+#define ini_write(buffer,file)        f_puts((buffer), (file))
+#define ini_rename(source,dest)       (f_rename((source), (dest)) == FR_OK)
+#define ini_remove(filename)          (f_unlink(filename) == FR_OK)
+
+#define INI_FILEPOS                   DWORD
+#define ini_tell(file,pos)            (*(pos) = f_tell((file)))
+#define ini_seek(file,pos)            (f_lseek((file), *(pos)) == FR_OK)

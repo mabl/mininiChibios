@@ -60,8 +60,8 @@ public:
     return result;
     }
 
-#if !defined INI_NOFLOAT
-  float getf(const wxString& Section, wxString& Key, float DefValue=0) const
+#if defined INI_REAL
+  INI_REAL getf(const wxString& Section, wxString& Key, INI_REAL DefValue=0) const
     { return ini_getf(Section.utf8_str(), Key.utf8_str(), DefValue, iniFilename.utf8_str()); }
 #endif
 
@@ -81,8 +81,8 @@ public:
   bool put(const wxString& Section, const wxString& Key, const char* Value) const
     { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
 
-#if !defined INI_NOFLOAT
-  bool put(const wxString& Section, const wxString& Key, float Value) const
+#if defined INI_REAL
+  bool put(const wxString& Section, const wxString& Key, INI_REAL Value) const
     { return (bool)ini_putf(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
 #endif
 

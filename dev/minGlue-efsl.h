@@ -2,6 +2,7 @@
  *  http://www.efsl.be/
  *
  *  Copyright (c) CompuPhase, 2008-2011
+ *  (EFSL is copyright 2005-2006 Lennart Ysboodt and Michael De Nil)
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy
@@ -17,22 +18,24 @@
  */
 
 #define INI_BUFFERSIZE  256       /* maximum line length, maximum path length */
-
-#include "efs.h"
-#define INI_FILETYPE    EmbeddedFile
 #define INI_LINETERM    "\r\n"    /* set line termination explicitly */
 
-
+#include "efs.h"
 extern EmbeddedFileSystem g_efs;
 
-#define ini_openread(filename,file)   (file_fopen((file),&g_efs.myFs,(char*)(filename),'r') == 0)
-#define ini_openwrite(filename,file)  (file_fopen((file),&g_efs.myFs,(char*)(filename),'w') == 0)
+#define INI_FILETYPE                  EmbeddedFile
+#define ini_openread(filename,file)   (file_fopen((file), &g_efs.myFs, (char*)(filename), 'r') == 0)
+#define ini_openwrite(filename,file)  (file_fopen((file), &g_efs.myFs, (char*)(filename), 'w') == 0)
 #define ini_close(file)               file_fclose(file)
-#define ini_read(buffer,size,file)    (file_read((file),(size),(buffer)) > 0)
-#define ini_write(buffer,file)        file_write((file),strlen(buffer),(char*)(buffer))
-#define ini_remove(filename)          rmfile(&g_efs.myFs,(char*)(filename))
-#define ini_rewind(file)              file_setpos(*(file),0)
+#define ini_read(buffer,size,file)    (file_read((file), (size), (buffer)) > 0)
+#define ini_write(buffer,file)        (file_write((file), strlen(buffer), (char*)(buffer)) > 0)
+#define ini_remove(filename)          rmfile(&g_efs.myFs, (char*)(filename))
 
+#define INI_FILEPOS                   euint32
+#define ini_tell(file,pos)            (*(pos) = (file)->FilePtr))
+#define ini_seek(file,pos)            file_setpos((file), (*pos))
+
+#if ! defined INI_READONLY
 /* EFSL lacks a rename function, so instead we copy the file to the new name
  * and delete the old file
  */
@@ -65,3 +68,4 @@ static int ini_rename(char *source, const char *dest)
   ini_tempname(source, dest, INI_BUFFERSIZE);
   return rmfile(&g_efs.myFs, source) == 0;
 }
+#endif

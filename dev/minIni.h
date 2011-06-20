@@ -41,16 +41,16 @@ int   ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue, TC
 int   ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
 int   ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
 
-#if !defined INI_NOFLOAT
-float ini_getf(const TCHAR *Section, const TCHAR *Key, float DefValue, const TCHAR *Filename);
+#if defined INI_REAL
+INI_REAL ini_getf(const TCHAR *Section, const TCHAR *Key, INI_REAL DefValue, const TCHAR *Filename);
 #endif
 
 #if !defined INI_READONLY
 int   ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename);
 int   ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename);
-#if !defined INI_NOFLOAT
-int   ini_putf(const TCHAR *Section, const TCHAR *Key, float Value, const TCHAR *Filename);
-#endif /* INI_NOFLOAT */
+#if defined INI_REAL
+int   ini_putf(const TCHAR *Section, const TCHAR *Key, INI_REAL Value, const TCHAR *Filename);
+#endif
 #endif /* INI_READONLY */
 
 #if defined __cplusplus
@@ -102,8 +102,8 @@ int   ini_putf(const TCHAR *Section, const TCHAR *Key, float Value, const TCHAR 
         return buffer;
       }
 
-#if !defined INI_NOFLOAT
-    float getf(const std::string& Section, const std::string& Key, float DefValue=0) const
+#if defined INI_REAL
+    INI_REAL getf(const std::string& Section, const std::string& Key, INI_REAL DefValue=0) const
       { return ini_getf(Section.c_str(), Key.c_str(), DefValue, iniFilename.c_str()); }
 #endif
 
@@ -123,8 +123,8 @@ int   ini_putf(const TCHAR *Section, const TCHAR *Key, float Value, const TCHAR 
     bool put(const std::string& Section, const std::string& Key, const char* Value) const
       { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
 
-#if !defined INI_NOFLOAT
-    bool put(const std::string& Section, const std::string& Key, float Value) const
+#if defined INI_REAL
+    bool put(const std::string& Section, const std::string& Key, INI_REAL Value) const
       { return (bool)ini_putf(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
 #endif
 

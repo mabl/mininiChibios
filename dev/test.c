@@ -10,6 +10,7 @@
 #define sizearray(a)  (sizeof(a) / sizeof((a)[0]))
 
 const char inifile[] = "test.ini";
+const char inifile2[] = "testplain.ini";
 
 int main(void)
 {
@@ -19,12 +20,18 @@ int main(void)
   char section[50];
 
   /* string reading */
-  n = ini_gets("first", "string", "aap", str, sizearray(str), inifile);
+  n = ini_gets("first", "string", "dummy", str, sizearray(str), inifile);
   assert(n==4 && strcmp(str,"noot")==0);
-  n = ini_gets("second", "string", "aap", str, sizearray(str), inifile);
+  n = ini_gets("second", "string", "dummy", str, sizearray(str), inifile);
   assert(n==4 && strcmp(str,"mies")==0);
-  n = ini_gets("first", "dummy", "aap", str, sizearray(str), inifile);
-  assert(n==3 && strcmp(str,"aap")==0);
+  n = ini_gets("first", "undefined", "dummy", str, sizearray(str), inifile);
+  assert(n==5 && strcmp(str,"dummy")==0);
+  /* ----- */
+  n = ini_gets("", "string", "dummy", str, sizearray(str), inifile2);
+  assert(n==4 && strcmp(str,"noot")==0);
+  n = ini_gets(NULL, "string", "dummy", str, sizearray(str), inifile2);
+  assert(n==4 && strcmp(str,"noot")==0);
+  /* ----- */
   printf("1. String reading tests passed\n");
 
   /* value reading */
@@ -32,24 +39,38 @@ int main(void)
   assert(n==1);
   n = ini_getl("second", "val", -1, inifile);
   assert(n==2);
-  n = ini_getl("first", "dummy", -1, inifile);
+  n = ini_getl("first", "undefined", -1, inifile);
   assert(n==-1);
+  /* ----- */
+  n = ini_getl(NULL, "val", -1, inifile2);
+  assert(n==1);
+  /* ----- */
   printf("2. Value reading tests passed\n");
 
   /* string writing */
   n = ini_puts("first", "alt", "flagged as \"correct\"", inifile);
   assert(n==1);
-  n = ini_gets("first", "alt", "aap", str, sizearray(str), inifile);
+  n = ini_gets("first", "alt", "dummy", str, sizearray(str), inifile);
   assert(n==20 && strcmp(str,"flagged as \"correct\"")==0);
   /* ----- */
   n = ini_puts("second", "alt", "correct", inifile);
   assert(n==1);
-  n = ini_gets("second", "alt", "aap", str, sizearray(str), inifile);
+  n = ini_gets("second", "alt", "dummy", str, sizearray(str), inifile);
   assert(n==7 && strcmp(str,"correct")==0);
   /* ----- */
-  n = ini_puts("third", "alt", "correct", inifile);
+  n = ini_puts("third", "test", "correct", inifile);
   assert(n==1);
-  n = ini_gets("third", "alt", "aap", str, sizearray(str), inifile);
+  n = ini_gets("third", "test", "dummy", str, sizearray(str), inifile);
+  assert(n==7 && strcmp(str,"correct")==0);
+  /* ----- */
+  n = ini_puts("second", "alt", "overwrite", inifile);
+  assert(n==1);
+  n = ini_gets("second", "alt", "dummy", str, sizearray(str), inifile);
+  assert(n==9 && strcmp(str,"overwrite")==0);
+  /* ----- */
+  n = ini_puts(NULL, "alt", "correct", inifile2);
+  assert(n==1);
+  n = ini_gets(NULL, "alt", "dummy", str, sizearray(str), inifile2);
   assert(n==7 && strcmp(str,"correct")==0);
   /* ----- */
   printf("3. String writing tests passed\n");
@@ -68,6 +89,9 @@ int main(void)
   n = ini_puts("second", "alt", NULL, inifile);
   assert(n==1);
   n = ini_puts("third", NULL, NULL, inifile);
+  assert(n==1);
+  /* ----- */
+  n = ini_puts(NULL, "alt", NULL, inifile2);
   assert(n==1);
 
   return 0;
