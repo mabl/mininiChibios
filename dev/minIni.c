@@ -291,7 +291,9 @@ long ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR
 {
   TCHAR LocalBuffer[64];
   int len = ini_gets(Section, Key, __T(""), LocalBuffer, sizearray(LocalBuffer), Filename);
-  return (len == 0) ? DefValue : _tcstol(LocalBuffer, NULL, 10);
+  return (len == 0) ? DefValue
+                    : ((len >= 2 && _totupper(LocalBuffer[1]) == 'X') ? _tcstol(LocalBuffer, NULL, 16)
+                                                                      : _tcstol(LocalBuffer, NULL, 10));
 }
 
 #if defined INI_REAL

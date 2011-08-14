@@ -1,11 +1,13 @@
-/*  Glue functions for the minIni library, based on the FatFs and Tiny-FatFs
+/*  Glue functions for the minIni library, based on the FatFs and Petit-FatFs
  *  libraries, see http://elm-chan.org/fsw/ff/00index_e.html
  *
  *  Copyright (c) CompuPhase, 2008-2011
+ *  (The FatFs and Petit-FatFs libraries are copyright by ChaN and licensed at
+ *  its own terms.)
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
- *  use this file except in compliance with the License. You may obtain a copy
- *  of the License at
+ *  This "glue file" is licensed under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *

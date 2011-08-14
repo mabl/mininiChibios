@@ -2,11 +2,12 @@
  *  http://www.efsl.be/
  *
  *  Copyright (c) CompuPhase, 2008-2011
- *  (EFSL is copyright 2005-2006 Lennart Ysboodt and Michael De Nil)
+ *  (EFSL is copyright 2005-2006 Lennart Ysboodt and Michael De Nil, and
+ *  licensed under the GPL with an exception clause for statit linking.)
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
- *  use this file except in compliance with the License. You may obtain a copy
- *  of the License at
+ *  This "glue file" is licensed under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
