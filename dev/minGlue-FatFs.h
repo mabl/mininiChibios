@@ -31,9 +31,16 @@
 #define ini_close(file)               (f_close(file) == FR_OK)
 #define ini_read(buffer,size,file)    f_gets((buffer), (size),(file))
 #define ini_write(buffer,file)        f_puts((buffer), (file))
-#define ini_rename(source,dest)       (f_rename((source), (dest)) == FR_OK)
 #define ini_remove(filename)          (f_unlink(filename) == FR_OK)
 
 #define INI_FILEPOS                   DWORD
 #define ini_tell(file,pos)            (*(pos) = f_tell((file)))
 #define ini_seek(file,pos)            (f_lseek((file), *(pos)) == FR_OK)
+
+static int ini_rename(TCHAR *source, const TCHAR *dest)
+{
+  /* Function f_rename() does not allow drive letters in the destination file */
+  char *drive = strchr(dest, ':');
+  drive = (drive == NULL) ? dest : drive + 1;
+  return (f_rename(source, drive) == FR_OK);
+}
