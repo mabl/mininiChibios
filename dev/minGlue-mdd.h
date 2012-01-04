@@ -1,7 +1,7 @@
 /*  minIni glue functions for Microchip's "Memory Disk Drive" file system
  *  library, as presented in Microchip application note AN1045.
  *
- *  Copyright (c) CompuPhase, 2011
+ *  Copyright (c) CompuPhase, 2011-2012
  *  (The "Microchip Memory Disk Drive File System" is copyright (c) Microchip
  *  Technology Incorporated, and licensed at its own terms.)
  *

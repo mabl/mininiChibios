@@ -1,7 +1,7 @@
 /*  Glue functions for the minIni library, based on the "FAT Filing System"
  *  library by embedded-code.com
  *
- *  Copyright (c) CompuPhase, 2008-2011
+ *  Copyright (c) CompuPhase, 2008-2012
  *  (The "FAT Filing System" library itself is copyright embedded-code.com, and
  *  licensed at its own terms.)
  *

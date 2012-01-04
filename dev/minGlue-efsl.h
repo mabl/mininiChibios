@@ -1,7 +1,7 @@
 /*  Glue functions for the minIni library, based on the EFS Library, see
  *  http://www.efsl.be/
  *
- *  Copyright (c) CompuPhase, 2008-2011
+ *  Copyright (c) CompuPhase, 2008-2012
  *  (EFSL is copyright 2005-2006 Lennart Ysboodt and Michael De Nil, and
  *  licensed under the GPL with an exception clause for statit linking.)
  *

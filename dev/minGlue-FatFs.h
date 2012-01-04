@@ -1,7 +1,7 @@
 /*  Glue functions for the minIni library, based on the FatFs and Petit-FatFs
  *  libraries, see http://elm-chan.org/fsw/ff/00index_e.html
  *
- *  Copyright (c) CompuPhase, 2008-2011
+ *  Copyright (c) CompuPhase, 2008-2012
  *  (The FatFs and Petit-FatFs libraries are copyright by ChaN and licensed at
  *  its own terms.)
  *
