@@ -78,7 +78,7 @@ int  ini_browse(INI_CALLBACK Callback, const void *UserData, const TCHAR *Filena
       { }
 
     bool getbool(const std::string& Section, const std::string& Key, bool DefValue=false) const
-      { return static_cast<bool>(ini_getbool(Section.c_str(), Key.c_str(), int(DefValue), iniFilename.c_str())); }
+      { return ini_getbool(Section.c_str(), Key.c_str(), int(DefValue), iniFilename.c_str()) != 0; }
 
     long getl(const std::string& Section, const std::string& Key, long DefValue=0) const
       { return ini_getl(Section.c_str(), Key.c_str(), DefValue, iniFilename.c_str()); }
@@ -114,30 +114,30 @@ int  ini_browse(INI_CALLBACK Callback, const void *UserData, const TCHAR *Filena
 
 #if ! defined INI_READONLY
     bool put(const std::string& Section, const std::string& Key, long Value) const
-      { return (bool)ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+      { return ini_putl(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()) != 0; }
 
     bool put(const std::string& Section, const std::string& Key, int Value) const
-      { return (bool)ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
+      { return ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()) != 0; }
 
     bool put(const std::string& Section, const std::string& Key, bool Value) const
-      { return (bool)ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()); }
+      { return ini_putl(Section.c_str(), Key.c_str(), (long)Value, iniFilename.c_str()) != 0; }
 
     bool put(const std::string& Section, const std::string& Key, const std::string& Value) const
-      { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()); }
+      { return ini_puts(Section.c_str(), Key.c_str(), Value.c_str(), iniFilename.c_str()) != 0; }
 
     bool put(const std::string& Section, const std::string& Key, const char* Value) const
-      { return (bool)ini_puts(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+      { return ini_puts(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()) != 0; }
 
 #if defined INI_REAL
     bool put(const std::string& Section, const std::string& Key, INI_REAL Value) const
-      { return (bool)ini_putf(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()); }
+      { return ini_putf(Section.c_str(), Key.c_str(), Value, iniFilename.c_str()) != 0; }
 #endif
 
     bool del(const std::string& Section, const std::string& Key) const
-      { return (bool)ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()); }
+      { return ini_puts(Section.c_str(), Key.c_str(), 0, iniFilename.c_str()) != 0; }
 
     bool del(const std::string& Section) const
-      { return (bool)ini_puts(Section.c_str(), 0, 0, iniFilename.c_str()); }
+      { return ini_puts(Section.c_str(), 0, 0, iniFilename.c_str()) != 0; }
 #endif
 
   private:

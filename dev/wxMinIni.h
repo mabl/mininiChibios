@@ -20,6 +20,7 @@
 #define WXMININI_H
 
 #include <wx/wx.h>
+#include "minIni.h"
 
 class minIni
 {
@@ -28,13 +29,13 @@ public:
     { }
 
   bool getbool(const wxString& Section, const wxString& Key, bool DefValue=false) const
-    { return static_cast<bool>(ini_getbool(Section.utf8_str(), Key.utf8_str(), int(DefValue), iniFilename.utf8_str())); }
+    { return ini_getbool(Section.utf8_str(), Key.utf8_str(), int(DefValue), iniFilename.utf8_str()) != 0; }
 
   long getl(const wxString& Section, const wxString& Key, long DefValue=0) const
     { return ini_getl(Section.utf8_str(), Key.utf8_str(), DefValue, iniFilename.utf8_str()); }
 
   int geti(const wxString& Section, const wxString& Key, int DefValue=0) const
-    { return static_cast<int>ini_getl(Section.utf8_str(), Key.utf8_str(), (long)DefValue, iniFilename.utf8_str()); }
+    { return static_cast<int>(ini_getl(Section.utf8_str(), Key.utf8_str(), (long)DefValue, iniFilename.utf8_str())); }
 
   wxString gets(const wxString& Section, const wxString& Key, const wxString& DefValue=wxT("")) const
     {
@@ -67,30 +68,30 @@ public:
 
 #if ! defined INI_READONLY
   bool put(const wxString& Section, const wxString& Key, long Value) const
-    { return (bool)ini_putl(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
+    { return ini_putl(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()) != 0; }
 
   bool put(const wxString& Section, const wxString& Key, int Value) const
-    { return (bool)ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()); }
+    { return ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()) != 0; }
 
   bool put(const wxString& Section, const wxString& Key, bool Value) const
-    { return (bool)ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()); }
+    { return ini_putl(Section.utf8_str(), Key.utf8_str(), (long)Value, iniFilename.utf8_str()) != 0; }
 
   bool put(const wxString& Section, const wxString& Key, const wxString& Value) const
-    { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), Value.utf8_str(), iniFilename.utf8_str()); }
+    { return ini_puts(Section.utf8_str(), Key.utf8_str(), Value.utf8_str(), iniFilename.utf8_str()) != 0; }
 
   bool put(const wxString& Section, const wxString& Key, const char* Value) const
-    { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
+    { return ini_puts(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()) != 0; }
 
 #if defined INI_REAL
   bool put(const wxString& Section, const wxString& Key, INI_REAL Value) const
-    { return (bool)ini_putf(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()); }
+    { return ini_putf(Section.utf8_str(), Key.utf8_str(), Value, iniFilename.utf8_str()) != 0; }
 #endif
 
   bool del(const wxString& Section, const wxString& Key) const
-    { return (bool)ini_puts(Section.utf8_str(), Key.utf8_str(), 0, iniFilename.utf8_str()); }
+    { return ini_puts(Section.utf8_str(), Key.utf8_str(), 0, iniFilename.utf8_str()) != 0; }
 
   bool del(const wxString& Section) const
-    { return (bool)ini_puts(Section.utf8_str(), 0, 0, iniFilename.utf8_str()); }
+    { return ini_puts(Section.utf8_str(), 0, 0, iniFilename.utf8_str()) != 0; }
 #endif
 
 private:
