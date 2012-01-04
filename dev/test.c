@@ -12,6 +12,12 @@
 const char inifile[] = "test.ini";
 const char inifile2[] = "testplain.ini";
 
+int Callback(const char *section, const char *key, const char *value, const void *userdata)
+{
+  printf("    [%s]\t%s=%s\n", section, key, value);
+  return 1;
+}
+
 int main(void)
 {
   char str[100];
@@ -76,12 +82,17 @@ int main(void)
   printf("3. String writing tests passed\n");
 
   /* section/key enumeration */
+  printf("4. Section/key enumertion, file contents follows\n");
   for (s = 0; ini_getsection(s, section, sizearray(section), inifile) > 0; s++) {
-    printf("[%s]\n", section);
+    printf("    [%s]\n", section);
     for (k = 0; ini_getkey(section, k, str, sizearray(str), inifile) > 0; k++) {
       printf("\t%s\n", str);
     } /* for */
   } /* for */
+
+  /* browsing through the file */
+  printf("5. browse through all settings, file contents follows\n");
+  ini_browse(Callback, NULL, inifile);
 
   /* string deletion */
   n = ini_puts("first", "alt", NULL, inifile);
@@ -93,6 +104,7 @@ int main(void)
   /* ----- */
   n = ini_puts(NULL, "alt", NULL, inifile2);
   assert(n==1);
+  printf("6. String deletion tests passed\n");
 
   return 0;
 }

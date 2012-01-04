@@ -53,6 +53,11 @@ int   ini_putf(const TCHAR *Section, const TCHAR *Key, INI_REAL Value, const TCH
 #endif
 #endif /* INI_READONLY */
 
+#if !defined INI_NOBROWSE
+typedef int (*INI_CALLBACK)(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const void *UserData);
+int  ini_browse(INI_CALLBACK Callback, const void *UserData, const TCHAR *Filename);
+#endif /* INI_NOBROWSE */
+
 #if defined __cplusplus
   }
 #endif

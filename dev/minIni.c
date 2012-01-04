@@ -50,7 +50,6 @@
   #define _tcsicmp  stricmp
   #define _tcslen   strlen
   #define _tcsncmp  strncmp
-  #define _tcsncpy  strncpy
   #define _tcsnicmp strnicmp
   #define _tcsrchr  strrchr
   #define _tcstol   strtol
@@ -123,6 +122,7 @@ static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen, enum
   size_t d, s;
 
   assert(maxlen>0);
+  assert(dest <= source || dest >= source + maxlen);
   if (option == QUOTE_ENQUOTE && maxlen < 3)
     option = QUOTE_NONE;  /* cannot store two quotes and a terminating zero in less than 3 characters */
 
@@ -162,11 +162,44 @@ static TCHAR *save_strncpy(TCHAR *dest, const TCHAR *source, size_t maxlen, enum
   return dest;
 }
 
+static TCHAR *cleanstring(TCHAR *string, enum quote_option *quotes)
+{
+  int isstring;
+  TCHAR *ep;
+
+  assert(string != NULL);
+  assert(quotes != NULL);
+
+  /* Remove a trailing comment */
+  isstring = 0;
+  for (ep = string; *ep != '\0' && ((*ep != ';' && *ep != '#') || isstring); ep++) {
+    if (*ep == '"') {
+      if (*(ep + 1) == '"')
+        ep++;                 /* skip "" (both quotes) */
+      else
+        isstring = !isstring; /* single quote, toggle isstring */
+    } else if (*ep == '\\' && *(ep + 1) == '"') {
+      ep++;                   /* skip \" (both quotes */
+    } /* if */
+  } /* for */
+  assert(ep != NULL && (*ep == '\0' || *ep == ';' || *ep == '#'));
+  *ep = '\0';                 /* terminate at a comment */
+  striptrailing(string);
+  /* Remove double quotes surrounding a value */
+  *quotes = QUOTE_NONE;
+  if (*string == '"' && (ep = _tcschr(string, '\0')) != NULL && *(ep - 1) == '"') {
+    string++;
+    *--ep = '\0';
+    *quotes = QUOTE_DEQUOTE;  /* this is a string, so remove escaped characters */
+  } /* if */
+  return string;
+}
+
 static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key,
                         int idxSection, int idxKey, TCHAR *Buffer, int BufferSize)
 {
   TCHAR *sp, *ep;
-  int len, idx, isstring;
+  int len, idx;
   enum quote_option quotes;
   TCHAR LocalBuffer[INI_BUFFERSIZE];
 
@@ -226,28 +259,7 @@ static int getkeystring(INI_FILETYPE *fp, const TCHAR *Section, const TCHAR *Key
   assert(ep != NULL);
   assert(*ep == '=' || *ep == ':');
   sp = skipleading(ep + 1);
-  /* Remove a trailing comment */
-  isstring = 0;
-  for (ep = sp; *ep != '\0' && ((*ep != ';' && *ep != '#') || isstring); ep++) {
-    if (*ep == '"') {
-      if (*(ep + 1) == '"')
-        ep++;                 /* skip "" (both quotes) */
-      else
-        isstring = !isstring; /* single quote, toggle isstring */
-    } else if (*ep == '\\' && *(ep + 1) == '"') {
-      ep++;                   /* skip \" (both quotes */
-    } /* if */
-  } /* for */
-  assert(ep != NULL && (*ep == '\0' || *ep == ';' || *ep == '#'));
-  *ep = '\0';                 /* terminate at a comment */
-  striptrailing(sp);
-  /* Remove double quotes surrounding a value */
-  quotes = QUOTE_NONE;
-  if (*sp == '"' && (ep = _tcschr(sp, '\0')) != NULL && *(ep - 1) == '"') {
-    sp++;
-    *--ep = '\0';
-    quotes = QUOTE_DEQUOTE;   /* this is a string, so remove escaped characters */
-  } /* if */
+  sp = cleanstring(sp, &quotes);  /* Remove a trailing comment */
   save_strncpy(Buffer, sp, BufferSize, quotes);
   return 1;
 }
@@ -401,6 +413,75 @@ int  ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, co
   return _tcslen(Buffer);
 }
 
+
+#if !defined INI_NOBROWSE
+/** ini_browse()
+ * \param Callback    a pointer to a function that will be called for every
+ *                    setting in the INI file.
+ * \param UserData    arbitrary data, which the function passes on the the
+ *                    \c Callback function
+ * \param Filename    the name and full path of the .ini file to read from
+ *
+ * \return            1 on success, 0 on failure (INI file not found)
+ *
+ * \note              The \c Callback function must return 1 to continue
+ *                    browsing through the INI file, or 0 to stop. Even when the
+ *                    callback stops the browsing, this function will return 1
+ *                    (for success).
+ */
+int  ini_browse(INI_CALLBACK Callback, const void *UserData, const TCHAR *Filename)
+{
+  TCHAR LocalBuffer[INI_BUFFERSIZE];
+  TCHAR *sp, *ep;
+  int lenSec, lenKey;
+  enum quote_option quotes;
+  INI_FILETYPE fp;
+
+  if (Callback == NULL)
+    return 0;
+  if (!ini_openread(Filename, &fp))
+    return 0;
+
+  LocalBuffer[0] = '\0';   /* copy an empty section in the buffer */
+  lenSec = _tcslen(LocalBuffer) + 1;
+  for ( ;; ) {
+    if (!ini_read(LocalBuffer + lenSec, INI_BUFFERSIZE - lenSec, &fp))
+      break;
+    sp = skipleading(LocalBuffer + lenSec);
+    /* ignore empty strings and comments */
+    if (*sp == '\0' || *sp == ';' || *sp == '#')
+      continue;
+    /* see whether we reached a new section */
+    ep = _tcschr(sp, ']');
+    if (*sp == '[' && ep != NULL) {
+      *ep = '\0';
+      save_strncpy(LocalBuffer, sp + 1, INI_BUFFERSIZE, QUOTE_NONE);
+      lenSec = _tcslen(LocalBuffer) + 1;
+      continue;
+    } /* if */
+    /* not a new section, test for a key/value pair */
+    ep = _tcschr(sp, '=');    /* test for the equal sign or colon */
+    if (ep == NULL)
+      ep = _tcschr(sp, ':');
+    if (ep == NULL)
+      continue;               /* invalid line, ignore */
+    *ep++ = '\0';             /* split the key from the value */
+    striptrailing(sp);
+    save_strncpy(LocalBuffer + lenSec, sp, INI_BUFFERSIZE - lenSec, QUOTE_NONE);
+    lenKey = _tcslen(LocalBuffer + lenSec) + 1;
+    /* clean up the value */
+    sp = skipleading(ep);
+    sp = cleanstring(sp, &quotes);  /* Remove a trailing comment */
+    save_strncpy(LocalBuffer + lenSec + lenKey, sp, INI_BUFFERSIZE - lenSec - lenKey, quotes);
+    /* call the callback */
+    if (!Callback(LocalBuffer, LocalBuffer + lenSec, LocalBuffer + lenSec + lenKey, UserData))
+      break;
+  } /* for */
+
+  (void)ini_close(&fp);
+  return 1;
+}
+#endif /* INI_NOBROWSE */
 
 #if ! defined INI_READONLY
 static void ini_tempname(TCHAR *dest, const TCHAR *source, int maxlength)

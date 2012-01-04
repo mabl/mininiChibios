@@ -58,14 +58,14 @@ int main(void)
   cout << "3. String writing tests passed" << endl;
 
   /* section/key enumeration */
+  cout << "4. section/key enumeration; file contents follows" << endl;
   string section;
   for (int is = 0; section = ini.getsection(is), section.length() > 0; is++) {
-    cout << "[" << section.c_str() << "]" << endl;
+    cout << "    [" << section.c_str() << "]" << endl;
     for (int ik = 0; s = ini.getkey(section, ik), s.length() > 0; ik++) {
       cout << "\t" << s.c_str() << endl;
     }
   }
-  cout << "4. section/key enumeration passed" << endl;
 
   /* string deletion */
   b = ini.del("first", "alt");
