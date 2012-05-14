@@ -14,6 +14,7 @@ const char inifile2[] = "testplain.ini";
 
 int Callback(const char *section, const char *key, const char *value, const void *userdata)
 {
+  (void)userdata; /* this parameter is not used in this example */
   printf("    [%s]\t%s=%s\n", section, key, value);
   return 1;
 }

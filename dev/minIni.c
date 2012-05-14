@@ -41,7 +41,7 @@
   #include <ctype.h>
   #include <string.h>
   #include <stdlib.h>
-  /* definition of TCHAR already in minIni.h */
+  #define TCHAR     char
   #define __T(s)    s
   #define _tcscat   strcat
   #define _tcschr   strchr
@@ -352,7 +352,7 @@ int ini_getbool(const TCHAR *Section, const TCHAR *Key, int DefValue, const TCHA
   int ret;
 
   ini_gets(Section, Key, __T(""), LocalBuffer, sizearray(LocalBuffer), Filename);
-  LocalBuffer[0] = toupper(LocalBuffer[0]);
+  LocalBuffer[0] = (TCHAR)toupper(LocalBuffer[0]);
   if (LocalBuffer[0] == 'Y' || LocalBuffer[0] == '1' || LocalBuffer[0] == 'T')
     ret = 1;
   else if (LocalBuffer[0] == 'N' || LocalBuffer[0] == '0' || LocalBuffer[0] == 'F')
@@ -814,13 +814,13 @@ int ini_putf(const TCHAR *Section, const TCHAR *Key, INI_REAL Value, const TCHAR
 #if defined PORTABLE_STRNICMP
 int strnicmp(const TCHAR *s1, const TCHAR *s2, size_t n)
 {
-  register unsigned TCHAR c1, c2;
+  register int c1, c2;
 
   while (n-- != 0 && (*s1 || *s2)) {
-    c1 = *(const unsigned TCHAR *)s1++;
+    c1 = *s1++;
     if ('a' <= c1 && c1 <= 'z')
       c1 += ('A' - 'a');
-    c2 = *(const unsigned TCHAR *)s2++;
+    c2 = *s2++;
     if ('a' <= c2 && c2 <= 'z')
       c2 += ('A' - 'a');
     if (c1 != c2)

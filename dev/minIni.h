@@ -21,10 +21,12 @@
 
 #include "minGlue.h"
 
-#if (defined _UNICODE || defined __UNICODE__ || defined UNICODE) && !defined INI_ANSIONLY
+#if (defined _UNICODE || defined __UNICODE__ || defined UNICODE) && !defined MININI_ANSI
   #include <tchar.h>
-#elif !defined __T
-  typedef char TCHAR;
+  #define mTCHAR TCHAR
+#else
+  /* force TCHAR to be "char", but only for minIni */
+  #define mTCHAR char
 #endif
 
 #if !defined INI_BUFFERSIZE
@@ -35,27 +37,27 @@
   extern "C" {
 #endif
 
-int   ini_getbool(const TCHAR *Section, const TCHAR *Key, int DefValue, const TCHAR *Filename);
-long  ini_getl(const TCHAR *Section, const TCHAR *Key, long DefValue, const TCHAR *Filename);
-int   ini_gets(const TCHAR *Section, const TCHAR *Key, const TCHAR *DefValue, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
-int   ini_getsection(int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
-int   ini_getkey(const TCHAR *Section, int idx, TCHAR *Buffer, int BufferSize, const TCHAR *Filename);
+int   ini_getbool(const mTCHAR *Section, const mTCHAR *Key, int DefValue, const mTCHAR *Filename);
+long  ini_getl(const mTCHAR *Section, const mTCHAR *Key, long DefValue, const mTCHAR *Filename);
+int   ini_gets(const mTCHAR *Section, const mTCHAR *Key, const mTCHAR *DefValue, mTCHAR *Buffer, int BufferSize, const mTCHAR *Filename);
+int   ini_getsection(int idx, mTCHAR *Buffer, int BufferSize, const mTCHAR *Filename);
+int   ini_getkey(const mTCHAR *Section, int idx, mTCHAR *Buffer, int BufferSize, const mTCHAR *Filename);
 
 #if defined INI_REAL
-INI_REAL ini_getf(const TCHAR *Section, const TCHAR *Key, INI_REAL DefValue, const TCHAR *Filename);
+INI_REAL ini_getf(const mTCHAR *Section, const mTCHAR *Key, INI_REAL DefValue, const mTCHAR *Filename);
 #endif
 
 #if !defined INI_READONLY
-int   ini_putl(const TCHAR *Section, const TCHAR *Key, long Value, const TCHAR *Filename);
-int   ini_puts(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const TCHAR *Filename);
+int   ini_putl(const mTCHAR *Section, const mTCHAR *Key, long Value, const mTCHAR *Filename);
+int   ini_puts(const mTCHAR *Section, const mTCHAR *Key, const mTCHAR *Value, const mTCHAR *Filename);
 #if defined INI_REAL
-int   ini_putf(const TCHAR *Section, const TCHAR *Key, INI_REAL Value, const TCHAR *Filename);
+int   ini_putf(const mTCHAR *Section, const mTCHAR *Key, INI_REAL Value, const mTCHAR *Filename);
 #endif
 #endif /* INI_READONLY */
 
 #if !defined INI_NOBROWSE
-typedef int (*INI_CALLBACK)(const TCHAR *Section, const TCHAR *Key, const TCHAR *Value, const void *UserData);
-int  ini_browse(INI_CALLBACK Callback, const void *UserData, const TCHAR *Filename);
+typedef int (*INI_CALLBACK)(const mTCHAR *Section, const mTCHAR *Key, const mTCHAR *Value, const void *UserData);
+int  ini_browse(INI_CALLBACK Callback, const void *UserData, const mTCHAR *Filename);
 #endif /* INI_NOBROWSE */
 
 #if defined __cplusplus
