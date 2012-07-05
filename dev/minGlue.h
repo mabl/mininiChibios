@@ -1,13 +1,13 @@
-/*  Glue functions for the minIni library, based on the C/C++ stdio library
- *
- *  Or better said: this file contains macros that maps the function interface
- *  used by minIni to the standard C/C++ file I/O functions.
+/*  Glue functions for the minIni library, based on the FatFs and Petit-FatFs
+ *  libraries, see http://elm-chan.org/fsw/ff/00index_e.html
  *
  *  Copyright (c) CompuPhase, 2008-2012
+ *  (The FatFs and Petit-FatFs libraries are copyright by ChaN and licensed at
+ *  its own terms.)
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
- *  use this file except in compliance with the License. You may obtain a copy
- *  of the License at
+ *  This "glue file" is licensed under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -18,23 +18,63 @@
  *  under the License.
  */
 
-/* map required file I/O types and functions to the standard C library */
-#include <stdio.h>
 
-#define INI_FILETYPE                  FILE*
-#define ini_openread(filename,file)   ((*(file) = fopen((filename),"rb")) != NULL)
-#define ini_openwrite(filename,file)  ((*(file) = fopen((filename),"wb")) != NULL)
-#define ini_close(file)               (fclose(*(file)) == 0)
-#define ini_read(buffer,size,file)    (fgets((buffer),(size),*(file)) != NULL)
-#define ini_write(buffer,file)        (fputs((buffer),*(file)) >= 0)
-#define ini_rename(source,dest)       (rename((source), (dest)) == 0)
-#define ini_remove(filename)          (remove(filename) == 0)
+#define INI_BUFFERSIZE  32       /* maximum line length, maximum path length */
 
-#define INI_FILEPOS                   fpos_t
-#define ini_tell(file,pos)            (fgetpos(*(file), (pos)) == 0)
-#define ini_seek(file,pos)            (fsetpos(*(file), (pos)) == 0)
+/* You must set _USE_STRFUNC to 1 or 2 in the include file ff.h (or tff.h)
+ * to enable the "string functions" fgets() and fputs().
+ */
+#include "ff.h"                   /* include tff.h for Tiny-FatFs */
 
-/* for floating-point support, define additional types and functions */
-#define INI_REAL                      float
-#define ini_ftoa(string,value)        sprintf((string),"%f",(value))
-#define ini_atof(string)              (INI_REAL)strtod((string),NULL)
+#include "ch.h"
+#include <string.h>
+
+#if !defined(MININI_USE_FATFS_WRAPPER) || defined(__DOXYGEN__)
+#define MININI_USE_FATFS_WRAPPER      1
+#endif
+
+#if !MININI_USE_FATFS_WRAPPER
+
+#define INI_FILETYPE    FIL
+#define ini_openread(filename,file)   (f_open((file), (filename), FA_READ+FA_OPEN_EXISTING) == FR_OK)
+#define ini_openwrite(filename,file)  (f_open((file), (filename), FA_WRITE+FA_CREATE_ALWAYS) == FR_OK)
+#define ini_close(file)               (f_close(file) == FR_OK)
+#define ini_read(buffer,size,file)    f_gets((buffer), (size),(file))
+#define ini_write(buffer,file)        f_puts((buffer), (file))
+#define ini_remove(filename)          (f_unlink(filename) == FR_OK)
+
+#define INI_FILEPOS                   DWORD
+#define ini_tell(file,pos)            (*(pos) = f_tell((file)))
+#define ini_seek(file,pos)            (f_lseek((file), *(pos)) == FR_OK)
+
+static int ini_rename(TCHAR *source, const TCHAR *dest) {
+  /* Function f_rename() does not allow drive letters in the destination file */
+  const char *drive = strchr(dest, ':');
+  drive = (drive == NULL) ? dest : drive + 1;
+  return (f_rename(source, drive) == FR_OK);
+}
+
+#else
+
+#include "fatfsWrapper.h"
+
+#define INI_FILETYPE    FIL
+#define ini_openread(filename,file)   (wf_open((file), (filename), FA_READ+FA_OPEN_EXISTING) == FR_OK)
+#define ini_openwrite(filename,file)  (wf_open((file), (filename), FA_WRITE+FA_CREATE_ALWAYS) == FR_OK)
+#define ini_close(file)               (wf_close(file) == FR_OK)
+#define ini_read(buffer,size,file)    wf_gets((buffer), (size),(file))
+#define ini_write(buffer,file)        wf_puts((buffer), (file))
+#define ini_remove(filename)          (wf_unlink(filename) == FR_OK)
+
+#define INI_FILEPOS                   DWORD
+#define ini_tell(file,pos)            (*(pos) = wf_tell((file)))
+#define ini_seek(file,pos)            (wf_lseek((file), *(pos)) == FR_OK)
+
+static int ini_rename(TCHAR *source, const TCHAR *dest) {
+  /* Function wf_rename() does not allow drive letters in the destination file */
+  const char *drive = strchr(dest, ':');
+  drive = (drive == NULL) ? dest : drive + 1;
+  return (wf_rename(source, drive) == FR_OK);
+}
+
+#endif
